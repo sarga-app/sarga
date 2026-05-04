@@ -1,0 +1,157 @@
+# Strict-ish linter set for sarga.
+# Security and correctness checks are aggressive; style checks moderate.
+# When a check is too noisy, prefer adjusting its config over disabling it.
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  disable-all: true
+  enable:
+    # ── correctness / bug-finding ──────────────────────────────────────────
+    - govet                # stdlib analysers (printf, locks, shadow, ...)
+    - errcheck             # every error must be checked
+    - staticcheck          # huge analyser suite; replaces deprecated megalint set
+    - ineffassign          # assignments whose value is never used
+    - unused               # dead code, unused vars, fields, types
+    - bodyclose            # http.Response.Body must be closed
+    - noctx                # http requests must use a context
+    - rowserrcheck         # sql.Rows.Err() must be checked
+    - sqlclosecheck        # sql.Rows / sql.Stmt must be closed
+    - nilerr               # `return nil` after `if err != nil`
+    - errorlint            # error wrap (%w) and errors.Is/As patterns
+    - exhaustive           # switch over enum-like consts must cover all
+    - contextcheck         # functions taking ctx must propagate it
+    - nilnil               # avoid returning (nil, nil)
+    - copyloopvar          # explicit copy of loop variable (informational on Go 1.22+)
+    - predeclared          # shadowing built-in names like `len`, `error`
+    - usestdlibvars        # use stdlib consts (e.g. http.StatusOK) over literals
+    - mirror               # use proper string/[]byte methods to avoid alloc
+    - nestif               # deeply nested ifs
+
+    # ── security ───────────────────────────────────────────────────────────
+    - gosec                # security smells; configured below
+
+    # ── style / idiom (moderate) ───────────────────────────────────────────
+    - gofmt
+    - goimports
+    - gofumpt              # stricter superset of gofmt
+    - misspell             # common English typos in code + comments
+    - revive               # configurable golint replacement
+    - gocritic             # large set of checks, defaults are sensible
+    - prealloc             # slice preallocation hints
+    - nakedret             # no naked returns in long functions
+    - unconvert            # unnecessary type conversions
+    - unparam              # unused function parameters
+
+    # ── test hygiene (will matter when we have tests) ──────────────────────
+    - testifylint
+    - testpackage
+    - thelper
+    - tparallel
+    - paralleltest
+
+linters-settings:
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment     # micro-optimisation; too noisy
+
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+    exclude-functions:
+      - io.Copy                          # best-effort drain in healthcheck
+      - (io.Closer).Close                # we sometimes defer Close in helpers
+      - (net/http.ResponseWriter).Write  # writing to ResponseWriter rarely fails meaningfully
+
+  gosec:
+    excludes:
+      - G104                # Errors unhandled — covered by errcheck with better signal
+    severity: low
+    confidence: low
+
+  staticcheck:
+    checks: ["all"]
+
+  goimports:
+    local-prefixes: github.com/rohan-k02/sarga
+
+  gofumpt:
+    extra-rules: true
+    module-path: github.com/rohan-k02/sarga
+
+  revive:
+    severity: warning
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings           # error strings should not be capitalised or end with punctuation
+      - name: error-naming
+      - name: exported               # require docs on exported decls
+        arguments: ["disableStutteringCheck"]
+      - name: if-return
+      - name: increment-decrement
+      - name: var-naming
+      - name: var-declaration
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf
+      - name: empty-block
+      - name: superfluous-else
+      - name: unused-parameter
+      - name: unreachable-code
+      - name: redefines-builtin-id
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - performance
+      - style
+      - opinionated
+    disabled-checks:
+      - whyNoLint                     # nolintlint covers this
+      - hugeParam                     # micro-opt; rarely actionable
+      - rangeValCopy                  # micro-opt; rarely actionable
+
+  nestif:
+    min-complexity: 5
+
+  nakedret:
+    max-func-lines: 30
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-dirs:
+    - web                              # frontend, separate ecosystem
+  exclude-rules:
+    # Test files are allowed to be looser.
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+        - revive
+        - gocritic
+        - unparam
+        - dupl
+        - funlen
+
+    # main.go is allowed to use os.Exit and bare exits.
+    - path: cmd/sarga/main\.go
+      linters:
+        - revive
+      text: "exit"
+
+    # We log structured fields with slog; format-string analyzers don't apply.
+    - linters:
+        - govet
+      text: "printf"
