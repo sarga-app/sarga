@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -16,7 +15,15 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const shutdownTimeout = 30 * time.Second
+const (
+	shutdownTimeout = 30 * time.Second
+
+	readHeaderTimeout = 10 * time.Second
+	readTimeout       = 30 * time.Second
+	writeTimeout      = 60 * time.Second
+	idleTimeout       = 120 * time.Second
+	maxHeaderBytes    = 1 << 20
+)
 
 func Run(ctx context.Context, cfg *config.Config) error {
 	logger, err := obs.NewLogger(cfg.Log)
@@ -30,8 +37,12 @@ func Run(ctx context.Context, cfg *config.Config) error {
 
 	srv := &http.Server{
 		Addr:              cfg.Server.Addr,
-		Handler:           routes(),
-		ReadHeaderTimeout: 10 * time.Second,
+		Handler:           newRouter(),
+		ReadHeaderTimeout: readHeaderTimeout,
+		ReadTimeout:       readTimeout,
+		WriteTimeout:      writeTimeout,
+		IdleTimeout:       idleTimeout,
+		MaxHeaderBytes:    maxHeaderBytes,
 	}
 
 	g, gctx := errgroup.WithContext(ctx)
@@ -57,13 +68,4 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	}
 	slog.Info("shutdown complete")
 	return nil
-}
-
-func routes() http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-	})
-	return mux
 }
