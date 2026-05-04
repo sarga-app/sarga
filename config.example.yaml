@@ -1,0 +1,17 @@
+# sarga configuration
+#
+# Copy this file to config.yaml and edit. Or set values via environment
+# variables prefixed with SARGA_ (e.g. SARGA_SERVER_ADDR=:9090).
+# Env vars override the file. The file overrides defaults shown below.
+
+server:
+  # Address to listen on. Use ":8080" for all interfaces, "127.0.0.1:8080"
+  # for localhost only.
+  addr: ":8080"
+
+log:
+  # One of: debug, info, warn, error
+  level: "info"
+
+  # One of: text (human-readable, dev) or json (structured, prod)
+  format: "text"
