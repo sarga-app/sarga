@@ -1,0 +1,39 @@
+# Binaries
+/sarga
+/dist/
+*.exe
+*.test
+*.out
+
+# Go
+vendor/
+coverage.txt
+coverage.html
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+CLAUDE.md
+PLAN.md
+.claude/
+.cursor/
+.aider*
+.continue/
+GEMINI.md
+AGENTS.md
+
+# Local config / data
+config.local.yaml
+/data/
+/cache/
+
