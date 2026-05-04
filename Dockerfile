@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
         ./cmd/sarga
 
 # ─── runtime stage ──────────────────────────────────────────────────────────
-FROM alpine:3.21.0
+FROM alpine:3.23.4
 
 # Runtime deps:
 #   ffmpeg              → transcoding (Phase 4)
