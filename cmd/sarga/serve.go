@@ -12,7 +12,7 @@ var serveConfigPath string
 var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Run the sarga server",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		cfg, err := config.Load(serveConfigPath)
 		if err != nil {
 			return err

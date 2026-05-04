@@ -27,7 +27,7 @@ Exits 0 on HTTP 200, non-zero otherwise.
 Probes plaintext loopback by convention. When TLS is enabled (Phase 7+), sarga will continue
 to expose /healthz on the loopback interface in plaintext for probe purposes; public traffic
 runs on the TLS bind.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		return probe(cmd.Context(), healthcheckAddr, healthcheckTimeout)
 	},
 }
@@ -46,7 +46,7 @@ func probe(parent context.Context, addr string, timeout time.Duration) error {
 
 	u := url.URL{Scheme: "http", Host: addr, Path: "/healthz"}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), http.NoBody)
 	if err != nil {
 		return err
 	}
@@ -58,8 +58,8 @@ func probe(parent context.Context, addr string, timeout time.Duration) error {
 		return err
 	}
 	defer func() {
-		_, _ = io.Copy(io.Discard, resp.Body)
-		_ = resp.Body.Close()
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
 	}()
 
 	if resp.StatusCode != http.StatusOK {

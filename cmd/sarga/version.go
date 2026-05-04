@@ -16,7 +16,7 @@ var version = ""
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print version information",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		v, commit, buildTime, dirty := buildInfo()
 		fmt.Printf("sarga %s\n", v)
 		fmt.Printf("  commit:    %s%s\n", commit, dirtyMarker(dirty))
@@ -41,7 +41,7 @@ func buildInfo() (v, commit, buildTime string, dirty bool) {
 		if v == "" {
 			v = "dev"
 		}
-		return
+		return v, commit, buildTime, dirty
 	}
 
 	if v == "" {
@@ -61,7 +61,7 @@ func buildInfo() (v, commit, buildTime string, dirty bool) {
 			dirty = s.Value == "true"
 		}
 	}
-	return
+	return v, commit, buildTime, dirty
 }
 
 func dirtyMarker(dirty bool) string {

@@ -59,9 +59,11 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	g.Go(func() error {
 		<-gctx.Done()
 		slog.Info("shutdown signal received", "timeout", shutdownTimeout)
+		// Fresh context: gctx is already cancelled by this point — using it would
+		// abort Shutdown immediately. We need a new deadline for the drain phase.
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
-		return srv.Shutdown(shutdownCtx)
+		return srv.Shutdown(shutdownCtx) //nolint:contextcheck // see comment above
 	})
 
 	if err := g.Wait(); err != nil {
