@@ -1,9 +1,8 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/rohan-k02/sarga/internal/platform/config"
+	"github.com/rohan-k02/sarga/internal/server"
 	"github.com/spf13/cobra"
 )
 
@@ -17,10 +16,7 @@ var serveCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Printf("config loaded: addr=%s log=%s/%s\n",
-			cfg.Server.Addr, cfg.Log.Level, cfg.Log.Format)
-		fmt.Println("serve: not yet implemented")
-		return nil
+		return server.Run(cmd.Context(), cfg)
 	},
 }
 

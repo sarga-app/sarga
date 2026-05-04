@@ -1,12 +1,3 @@
-// Package config loads and validates sarga's runtime configuration.
-//
-// Three sources, merged in order (later overrides earlier):
-//  1. Hardcoded defaults
-//  2. YAML file (optional)
-//  3. SARGA_-prefixed environment variables
-//
-// Env mapping: SARGA_SERVER_ADDR → server.addr (prefix stripped, lowercased,
-// underscores become dots).
 package config
 
 import (
@@ -43,9 +34,6 @@ var defaults = map[string]any{
 	"log.format":  "text",
 }
 
-// Load builds a Config from defaults, optionally a YAML file at path, and
-// SARGA_-prefixed environment variables. An empty or missing file is fine;
-// any other file error is returned.
 func Load(path string) (*Config, error) {
 	k := koanf.New(".")
 
