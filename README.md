@@ -1,5 +1,7 @@
 # sarga
 
+[![ci](https://github.com/rohan-k02/sarga/actions/workflows/ci.yml/badge.svg)](https://github.com/rohan-k02/sarga/actions/workflows/ci.yml)
+
 A self-hosted music server I'm building for myself.
 
 The idea is simple: own your music library, curate it properly, and play it back without the file ever being touched on the way out. No transcoding by default, no compression on the lossless path, no streaming service in the loop.

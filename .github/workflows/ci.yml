@@ -1,0 +1,110 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Read-only by default; jobs grant what they need.
+permissions:
+  contents: read
+
+# Cancel in-progress runs of the same workflow on the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: "1.26.2"
+
+jobs:
+  ci:
+    name: build / vet / lint / test / vuln
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: false
+          cache: true
+
+      - name: Verify go.mod / go.sum are tidy
+        run: make tidy-check
+
+      - name: Format check
+        run: make fmt-check
+
+      - name: Vet
+        run: make vet
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8.0.0
+        with:
+          version: v1.64.8
+          args: --timeout=5m
+
+      - name: Test (race + count=1)
+        run: make test
+
+      - name: Vulnerability check
+        uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee # v1.0.4
+        with:
+          go-version-input: ${{ env.GO_VERSION }}
+
+      - name: Build binary
+        run: make build
+
+      - name: Smoke test binary
+        run: |
+          ./sarga version
+          ./sarga --help
+          ./sarga healthcheck && exit 1 || true   # expect non-zero (no server)
+
+  docker:
+    name: docker build + smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+
+      - name: Build image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          push: false
+          load: true
+          tags: sarga:ci
+          build-args: |
+            VERSION=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test container
+        run: |
+          docker run -d --name sarga-ci -p 8080:8080 sarga:ci serve
+          for i in {1..10}; do
+            if curl -sf http://localhost:8080/healthz > /dev/null; then
+              echo "healthz OK"
+              break
+            fi
+            if [ $i -eq 10 ]; then
+              echo "healthz never came up"
+              docker logs sarga-ci
+              exit 1
+            fi
+            sleep 1
+          done
+          docker exec sarga-ci sarga healthcheck
+          docker stop sarga-ci
+          docker rm sarga-ci
