@@ -1,0 +1,52 @@
+# Keep build context minimal and never leak local-only files.
+
+.git
+.gitignore
+.github
+
+# Local builds
+/sarga
+/dist/
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# Local config / data / secrets
+config.yaml
+config.local.yaml
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+/data/
+/cache/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+CLAUDE.md
+PLAN.md
+.claude/
+.cursor/
+.aider*
+.continue/
+GEMINI.md
+AGENTS.md
+
+# Frontend build artefacts (rebuild inside the container if needed)
+web/node_modules/
+web/dist/
+
+# Docs aren't needed in the runtime image
+docs/
+
+# Docker-related files don't need to be in the build context
+Dockerfile
+.dockerignore
+compose.yaml
+compose.*.yaml
