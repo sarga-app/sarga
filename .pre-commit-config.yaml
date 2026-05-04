@@ -1,0 +1,68 @@
+# Pre-commit hooks. Install once per clone:
+#   pip install pre-commit && pre-commit install
+# Then hooks run automatically on `git commit`.
+#
+# Cheap checks run on every commit (gofmt, vet, file hygiene).
+# Slow checks (lint, vuln) run on `git push` only — see `stages: [pre-push]`.
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: detect-private-key
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+
+  - repo: local
+    hooks:
+      - id: gofmt
+        name: gofmt
+        entry: gofmt -l -w
+        language: system
+        files: \.go$
+
+      - id: goimports
+        name: goimports
+        entry: goimports -w -local github.com/rohan-k02/sarga
+        language: system
+        files: \.go$
+
+      - id: go-mod-tidy
+        name: go mod tidy
+        entry: go mod tidy
+        language: system
+        pass_filenames: false
+        files: ^(go\.mod|go\.sum)$
+
+      - id: go-vet
+        name: go vet
+        entry: go vet ./...
+        language: system
+        pass_filenames: false
+        files: \.go$
+
+      # Slower checks — run on push, not every commit.
+      - id: golangci-lint
+        name: golangci-lint
+        entry: golangci-lint run ./...
+        language: system
+        pass_filenames: false
+        files: \.go$
+        stages: [pre-push]
+
+      - id: govulncheck
+        name: govulncheck
+        entry: govulncheck ./...
+        language: system
+        pass_filenames: false
+        files: \.go$
+        stages: [pre-push]
