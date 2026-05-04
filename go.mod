@@ -1,6 +1,6 @@
 module github.com/rohan-k02/sarga
 
-go 1.25.6
+go 1.26.2
 
 require (
 	github.com/go-chi/chi/v5 v5.2.5
