@@ -10,9 +10,10 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/rohan-k02/sarga/internal/platform/config"
 	"github.com/rohan-k02/sarga/internal/platform/obs"
-	"golang.org/x/sync/errgroup"
 )
 
 const (
