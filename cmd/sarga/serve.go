@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/rohan-k02/sarga/internal/platform/config"
-	"github.com/rohan-k02/sarga/internal/server"
+	"github.com/sarga-app/sarga/internal/platform/config"
+	"github.com/sarga-app/sarga/internal/server"
 )
 
 var serveConfigPath string

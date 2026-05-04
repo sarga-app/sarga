@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rohan-k02/sarga/internal/platform/config"
+	"github.com/sarga-app/sarga/internal/platform/config"
 )
 
 func NewLogger(cfg config.LogConfig) (*slog.Logger, error) {

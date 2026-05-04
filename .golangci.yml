@@ -149,10 +149,10 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/rohan-k02/sarga
+        - github.com/sarga-app/sarga
     gofumpt:
       extra-rules: true
-      module-path: github.com/rohan-k02/sarga
+      module-path: github.com/sarga-app/sarga
 
 issues:
   max-issues-per-linter: 0

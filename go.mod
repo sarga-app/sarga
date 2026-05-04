@@ -1,4 +1,4 @@
-module github.com/rohan-k02/sarga
+module github.com/sarga-app/sarga
 
 go 1.26.2
 

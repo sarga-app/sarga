@@ -12,8 +12,8 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/rohan-k02/sarga/internal/platform/config"
-	"github.com/rohan-k02/sarga/internal/platform/obs"
+	"github.com/sarga-app/sarga/internal/platform/config"
+	"github.com/sarga-app/sarga/internal/platform/obs"
 )
 
 const (

@@ -32,7 +32,7 @@ repos:
 
       - id: goimports
         name: goimports
-        entry: goimports -w -local github.com/rohan-k02/sarga
+        entry: goimports -w -local github.com/sarga-app/sarga
         language: system
         files: \.go$
 
