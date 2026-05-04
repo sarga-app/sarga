@@ -34,6 +34,9 @@ jobs:
           check-latest: false
           cache: true
 
+      - name: Install dev tools (goimports)
+        run: go install golang.org/x/tools/cmd/goimports@latest
+
       - name: Verify go.mod / go.sum are tidy
         run: make tidy-check
 
