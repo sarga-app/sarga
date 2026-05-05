@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/sarga-app/sarga/internal/platform/config"
+	"github.com/sarga-app/sarga/internal/platform/db"
 	"github.com/sarga-app/sarga/internal/server"
 )
 
@@ -17,7 +18,14 @@ var serveCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return server.Run(cmd.Context(), cfg)
+
+		pool, err := db.NewPool(cmd.Context(), cfg.Database)
+		if err != nil {
+			return err
+		}
+		defer pool.Close()
+
+		return server.Run(cmd.Context(), cfg, pool)
 	},
 }
 

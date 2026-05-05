@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/sarga-app/sarga/internal/platform/config"
@@ -26,7 +27,7 @@ const (
 	maxHeaderBytes    = 1 << 20
 )
 
-func Run(ctx context.Context, cfg *config.Config) error {
+func Run(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool) error {
 	logger, err := obs.NewLogger(cfg.Log)
 	if err != nil {
 		return err
@@ -38,7 +39,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 
 	srv := &http.Server{
 		Addr:              cfg.Server.Addr,
-		Handler:           newRouter(),
+		Handler:           newRouter(pool),
 		ReadHeaderTimeout: readHeaderTimeout,
 		ReadTimeout:       readTimeout,
 		WriteTimeout:      writeTimeout,

@@ -10,7 +10,7 @@ import (
 
 const requestTimeout = 60 * time.Second
 
-func newRouter() http.Handler {
+func newRouter(db pinger) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RealIP)
@@ -20,7 +20,7 @@ func newRouter() http.Handler {
 	r.Use(slogRequestLogger)
 	r.Use(middleware.Timeout(requestTimeout))
 
-	r.Get("/healthz", healthz)
+	r.Get("/healthz", healthzHandler(db))
 
 	return r
 }
