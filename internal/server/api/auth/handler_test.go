@@ -1,4 +1,4 @@
-//nolint:testpackage // tests poke unexported fields and Store internals.
+//nolint:testpackage // tests use package-private fakeStore + dummyHash.
 package auth
 
 import (
@@ -129,20 +129,11 @@ func (s *fakeStore) RevokeAllUserRefreshTokens(_ context.Context, userID uuid.UU
 	return nil
 }
 
-func newHandler(t *testing.T) (*Handler, *fakeStore) {
+func newTestHandler(t *testing.T) (*Handler, *fakeStore) {
 	t.Helper()
 	store := newFakeStore()
-	return &Handler{
-		Store: store,
-		JWT: coreauth.JWTConfig{
-			Secret:    []byte("test-secret-32-bytes-long-padding!!"),
-			Issuer:    "sarga-test",
-			Audience:  "sarga-web",
-			AccessTTL: 30 * time.Minute,
-		},
-		RefreshTTL:   30 * 24 * time.Hour,
-		CookieSecure: false,
-	}, store
+	jwt := coreauth.JWTConfig{Secret: []byte("test-secret-32-bytes-long-padding!!")}
+	return NewHandler(store, jwt), store
 }
 
 func seedUser(t *testing.T, store *fakeStore, username, password string, isAdmin bool) uuid.UUID {
@@ -165,49 +156,40 @@ func seedUser(t *testing.T, store *fakeStore, username, password string, isAdmin
 
 func TestLogin_Success(t *testing.T) {
 	t.Parallel()
-	h, store := newHandler(t)
+	h, store := newTestHandler(t)
 	seedUser(t, store, "alice", "hunter2!", true)
 
 	body := strings.NewReader(`{"username":"alice","password":"hunter2!"}`)
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", body)
 	rr := httptest.NewRecorder()
-
 	h.Login(rr, req)
 
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rr.Code, rr.Body.String())
 	}
-	var resp loginResponse
+	var resp LoginResponse
 	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
 		t.Fatal(err)
 	}
 	if resp.AccessToken == "" {
 		t.Error("missing access_token")
 	}
-	if resp.ExpiresIn != 1800 {
-		t.Errorf("ExpiresIn = %d, want 1800", resp.ExpiresIn)
+	if resp.ExpiresIn != int(coreauth.AccessTTL.Seconds()) {
+		t.Errorf("ExpiresIn = %d, want %d", resp.ExpiresIn, int(coreauth.AccessTTL.Seconds()))
 	}
-	cookies := rr.Result().Cookies()
-	var refresh *http.Cookie
-	for _, c := range cookies {
-		if c.Name == RefreshCookieName {
-			refresh = c
-		}
-	}
-	if refresh == nil || refresh.Value == "" {
+	if refreshCookieFrom(t, rr) == nil {
 		t.Error("refresh cookie not set")
 	}
 }
 
 func TestLogin_WrongPassword(t *testing.T) {
 	t.Parallel()
-	h, store := newHandler(t)
+	h, store := newTestHandler(t)
 	seedUser(t, store, "alice", "hunter2!", false)
 
 	body := strings.NewReader(`{"username":"alice","password":"WRONG"}`)
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", body)
 	rr := httptest.NewRecorder()
-
 	h.Login(rr, req)
 
 	if rr.Code != http.StatusUnauthorized {
@@ -217,11 +199,10 @@ func TestLogin_WrongPassword(t *testing.T) {
 
 func TestLogin_NoSuchUser(t *testing.T) {
 	t.Parallel()
-	h, _ := newHandler(t)
+	h, _ := newTestHandler(t)
 	body := strings.NewReader(`{"username":"ghost","password":"x"}`)
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", body)
 	rr := httptest.NewRecorder()
-
 	h.Login(rr, req)
 	if rr.Code != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401", rr.Code)
@@ -230,7 +211,7 @@ func TestLogin_NoSuchUser(t *testing.T) {
 
 func TestRefresh_Rotates(t *testing.T) {
 	t.Parallel()
-	h, store := newHandler(t)
+	h, store := newTestHandler(t)
 	seedUser(t, store, "alice", "hunter2!", false)
 
 	loginRR := doLogin(t, h, "alice", "hunter2!")
@@ -239,20 +220,18 @@ func TestRefresh_Rotates(t *testing.T) {
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/refresh", nil)
 	req.AddCookie(cookie)
 	rr := httptest.NewRecorder()
-
 	h.Refresh(rr, req)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("refresh status = %d, body = %s", rr.Code, rr.Body.String())
 	}
-	newCookie := refreshCookieFrom(t, rr)
-	if newCookie.Value == cookie.Value {
+	if refreshCookieFrom(t, rr).Value == cookie.Value {
 		t.Error("refresh did not rotate cookie")
 	}
 }
 
 func TestRefresh_ReplayDetection(t *testing.T) {
 	t.Parallel()
-	h, store := newHandler(t)
+	h, store := newTestHandler(t)
 	uid := seedUser(t, store, "alice", "hunter2!", false)
 
 	loginRR := doLogin(t, h, "alice", "hunter2!")
@@ -266,7 +245,6 @@ func TestRefresh_ReplayDetection(t *testing.T) {
 		t.Fatalf("first refresh failed: %d", rr1.Code)
 	}
 
-	// Replay the original (now-revoked) token.
 	req2 := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/refresh", nil)
 	req2.AddCookie(first)
 	rr2 := httptest.NewRecorder()
@@ -274,8 +252,6 @@ func TestRefresh_ReplayDetection(t *testing.T) {
 	if rr2.Code != http.StatusUnauthorized {
 		t.Errorf("replay status = %d, want 401", rr2.Code)
 	}
-
-	// Confirm all of alice's tokens are now revoked.
 	for _, rt := range store.tokens {
 		if rt.UserID == uid && rt.RevokedAt == nil {
 			t.Error("expected all of alice's tokens revoked after replay")
@@ -285,7 +261,7 @@ func TestRefresh_ReplayDetection(t *testing.T) {
 
 func TestLogout_RevokesAndClears(t *testing.T) {
 	t.Parallel()
-	h, store := newHandler(t)
+	h, store := newTestHandler(t)
 	seedUser(t, store, "alice", "hunter2!", false)
 
 	loginRR := doLogin(t, h, "alice", "hunter2!")
@@ -308,7 +284,7 @@ func TestLogout_RevokesAndClears(t *testing.T) {
 
 func doLogin(t *testing.T, h *Handler, username, password string) *httptest.ResponseRecorder {
 	t.Helper()
-	body, _ := json.Marshal(loginRequest{Username: username, Password: password})
+	body, _ := json.Marshal(LoginRequest{Username: username, Password: password})
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", bytes.NewReader(body))
 	rr := httptest.NewRecorder()
 	h.Login(rr, req)

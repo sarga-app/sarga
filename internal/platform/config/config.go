@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net"
 	"strings"
-	"time"
 
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/confmap"
@@ -19,8 +18,14 @@ import (
 type Config struct {
 	Server   ServerConfig   `koanf:"server"`
 	Log      LogConfig      `koanf:"log"`
+	State    StateConfig    `koanf:"state"`
 	Database DatabaseConfig `koanf:"database"`
-	Auth     AuthConfig     `koanf:"auth"`
+}
+
+// StateConfig: writable directory sarga owns for secrets, transcoding cache,
+// scan checkpoints. In docker: mount a volume here.
+type StateConfig struct {
+	Dir string `koanf:"dir"`
 }
 
 type ServerConfig struct {
@@ -30,26 +35,6 @@ type ServerConfig struct {
 type LogConfig struct {
 	Level  string `koanf:"level"`  // debug | info | warn | error
 	Format string `koanf:"format"` // text | json
-}
-
-type AuthConfig struct {
-	JWTSecret    string        `koanf:"jwtsecret"`
-	JWTIssuer    string        `koanf:"jwtissuer"`
-	JWTAudience  string        `koanf:"jwtaudience"`
-	AccessTTL    time.Duration `koanf:"accessttl"`
-	RefreshTTL   time.Duration `koanf:"refreshttl"`
-	CookieSecure bool          `koanf:"cookiesecure"`
-}
-
-func (a AuthConfig) LogValue() slog.Value {
-	return slog.GroupValue(
-		slog.String("jwtsecret", redactedMarker(a.JWTSecret)),
-		slog.String("jwtissuer", a.JWTIssuer),
-		slog.String("jwtaudience", a.JWTAudience),
-		slog.Duration("accessttl", a.AccessTTL),
-		slog.Duration("refreshttl", a.RefreshTTL),
-		slog.Bool("cookiesecure", a.CookieSecure),
-	)
 }
 
 type DatabaseConfig struct {
@@ -95,11 +80,7 @@ var defaults = map[string]any{
 	"database.sslmode":     "disable",
 	"database.maxconns":    0,
 	"database.automigrate": true,
-	"auth.jwtissuer":       "sarga",
-	"auth.jwtaudience":     "sarga-web",
-	"auth.accessttl":       "30m",
-	"auth.refreshttl":      "720h",
-	"auth.cookiesecure":    true,
+	"state.dir":            "./data",
 }
 
 func Load(path string) (*Config, error) {
@@ -178,23 +159,8 @@ func (c Config) Validate() error {
 		return errors.New("database.password must not be empty")
 	}
 
-	if len(c.Auth.JWTSecret) < 32 {
-		return errors.New(
-			"auth.jwtsecret must be at least 32 bytes; generate one with `openssl rand -base64 48` " +
-				"and set via SARGA_AUTH_JWT_SECRET or the auth.jwtsecret YAML key",
-		)
-	}
-	if c.Auth.JWTIssuer == "" {
-		return errors.New("auth.jwtissuer must not be empty")
-	}
-	if c.Auth.JWTAudience == "" {
-		return errors.New("auth.jwtaudience must not be empty")
-	}
-	if c.Auth.AccessTTL <= 0 {
-		return fmt.Errorf("auth.accessttl must be positive, got %s", c.Auth.AccessTTL)
-	}
-	if c.Auth.RefreshTTL <= c.Auth.AccessTTL {
-		return fmt.Errorf("auth.refreshttl (%s) must exceed access_ttl (%s)", c.Auth.RefreshTTL, c.Auth.AccessTTL)
+	if c.State.Dir == "" {
+		return errors.New("state.dir must not be empty")
 	}
 
 	return nil

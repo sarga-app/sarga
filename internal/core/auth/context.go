@@ -14,10 +14,8 @@ const (
 )
 
 func WithUser(ctx context.Context, userID uuid.UUID, isAdmin bool) context.Context {
-	return context.WithValue(
-		context.WithValue(ctx, ctxKeyUserID, userID),
-		ctxKeyIsAdmin, isAdmin,
-	)
+	withID := context.WithValue(ctx, ctxKeyUserID, userID)
+	return context.WithValue(withID, ctxKeyIsAdmin, isAdmin)
 }
 
 func UserIDFrom(ctx context.Context) (uuid.UUID, bool) {
@@ -26,6 +24,8 @@ func UserIDFrom(ctx context.Context) (uuid.UUID, bool) {
 }
 
 func IsAdminFrom(ctx context.Context) bool {
-	v, _ := ctx.Value(ctxKeyIsAdmin).(bool)
-	return v
+	if v, ok := ctx.Value(ctxKeyIsAdmin).(bool); ok {
+		return v
+	}
+	return false
 }

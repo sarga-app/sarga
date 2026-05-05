@@ -14,11 +14,10 @@ import (
 func testCfg(t *testing.T) JWTConfig {
 	t.Helper()
 	return JWTConfig{
-		Secret:    []byte("test-secret-at-least-32-bytes-long!!"),
-		Issuer:    "sarga-test",
-		Audience:  "sarga-web",
-		AccessTTL: 30 * time.Minute,
-		Clock:     func() time.Time { return time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC) },
+		Secret:   []byte("test-secret-at-least-32-bytes-long!!"),
+		Issuer:   "sarga-test",
+		Audience: "sarga-web",
+		Clock:    func() time.Time { return time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC) },
 	}
 }
 

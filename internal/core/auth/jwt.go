@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	DefaultAccessTTL  = 30 * time.Minute
-	DefaultRefreshTTL = 30 * 24 * time.Hour
+	AccessTTL  = 30 * time.Minute
+	RefreshTTL = 30 * 24 * time.Hour
 
 	signingMethod = "HS256"
 )
@@ -24,13 +24,27 @@ type AccessClaims struct {
 	IsAdmin bool `json:"sarga.is_admin"`
 }
 
-// JWTConfig is constructed once at startup and passed to Issue/Parse.
+// JWTConfig: Secret is mandatory; Issuer/Audience default if zero. Clock is
+// injectable for tests.
 type JWTConfig struct {
-	Secret    []byte
-	Issuer    string
-	Audience  string
-	AccessTTL time.Duration
-	Clock     func() time.Time
+	Secret   []byte
+	Issuer   string
+	Audience string
+	Clock    func() time.Time
+}
+
+func (c JWTConfig) issuer() string {
+	if c.Issuer != "" {
+		return c.Issuer
+	}
+	return DefaultIssuer
+}
+
+func (c JWTConfig) audience() string {
+	if c.Audience != "" {
+		return c.Audience
+	}
+	return DefaultAudience
 }
 
 func (c JWTConfig) now() time.Time {
@@ -47,10 +61,10 @@ func IssueAccessToken(cfg JWTConfig, userID uuid.UUID, isAdmin bool) (string, er
 	now := cfg.now()
 	claims := AccessClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    cfg.Issuer,
+			Issuer:    cfg.issuer(),
 			Subject:   userID.String(),
-			Audience:  jwt.ClaimStrings{cfg.Audience},
-			ExpiresAt: jwt.NewNumericDate(now.Add(cfg.AccessTTL)),
+			Audience:  jwt.ClaimStrings{cfg.audience()},
+			ExpiresAt: jwt.NewNumericDate(now.Add(AccessTTL)),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
 			ID:        uuid.NewString(),

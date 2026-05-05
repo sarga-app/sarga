@@ -16,6 +16,11 @@ log:
   # One of: text (human-readable, dev) or json (structured, prod)
   format: "text"
 
+state:
+  # Writable directory for sarga's persistent state: JWT signing key, transcode
+  # cache, scan checkpoints. In docker, mount a volume here. Back this up.
+  dir: "./data"
+
 database:
   host: "localhost"
   port: 5432
@@ -30,13 +35,8 @@ database:
   # explicitly via `sarga migrate up` from one of them.
   automigrate: true
 
-auth:
-  # Required. Generate with: openssl rand -base64 48
-  # Set via SARGA_AUTH_JWTSECRET in production; do NOT commit to git.
-  jwtsecret: ""
-
-  jwtissuer:    "sarga"
-  jwtaudience:  "sarga-web"
-  accessttl:    "30m"
-  refreshttl:   "720h"   # 30 days
-  cookiesecure: true     # set false for plaintext-HTTP local dev
+# Auth has no operator knobs by default. JWT signing secret is auto-generated
+# on first boot at <state.dir>/secret.key (0600 perms, never logged, never
+# in DB backups). Override at deploy time with SARGA_AUTH_JWT_SECRET if you
+# inject secrets via Docker secrets / Vault / external KMS — must be ≥32 bytes.
+# Cookie Secure flag is derived from the request's TLS state.

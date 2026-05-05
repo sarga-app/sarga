@@ -1,5 +1,5 @@
-//nolint:testpackage // tests cover unexported healthzHandler and pinger.
-package server
+//nolint:testpackage // tests cover unexported handler.
+package health
 
 import (
 	"context"
@@ -14,12 +14,12 @@ type fakePinger struct{ err error }
 
 func (f fakePinger) Ping(_ context.Context) error { return f.err }
 
-func TestHealthzHandler_OK(t *testing.T) {
+func TestHandler_OK(t *testing.T) {
 	t.Parallel()
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", nil)
 
-	healthzHandler(fakePinger{}).ServeHTTP(rr, req)
+	handler(fakePinger{}).ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("status = %d, want 200", rr.Code)
@@ -32,12 +32,12 @@ func TestHealthzHandler_OK(t *testing.T) {
 	}
 }
 
-func TestHealthzHandler_Degraded(t *testing.T) {
+func TestHandler_Degraded(t *testing.T) {
 	t.Parallel()
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", nil)
 
-	healthzHandler(fakePinger{err: errors.New("boom")}).ServeHTTP(rr, req)
+	handler(fakePinger{err: errors.New("boom")}).ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusServiceUnavailable {
 		t.Errorf("status = %d, want 503", rr.Code)

@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/sarga-app/sarga/internal/platform/config"
 )
@@ -129,13 +128,7 @@ func TestValidate(t *testing.T) {
 		Host: "localhost", Port: 5432, User: "sarga", Name: "sarga",
 		Password: "sarga", SSLMode: "disable",
 	}
-	okAuth := config.AuthConfig{
-		JWTSecret:   strings.Repeat("a", 32),
-		JWTIssuer:   "sarga",
-		JWTAudience: "sarga-web",
-		AccessTTL:   30 * time.Minute,
-		RefreshTTL:  720 * time.Hour,
-	}
+	okState := config.StateConfig{Dir: t.TempDir()}
 	tests := []struct {
 		name    string
 		cfg     config.Config
@@ -143,26 +136,26 @@ func TestValidate(t *testing.T) {
 	}{
 		{
 			name: "ok",
-			cfg:  config.Config{Server: config.ServerConfig{Addr: ":8080"}, Log: config.LogConfig{Level: "info", Format: "text"}, Database: okDB, Auth: okAuth},
+			cfg:  config.Config{Server: config.ServerConfig{Addr: ":8080"}, Log: config.LogConfig{Level: "info", Format: "text"}, Database: okDB, State: okState},
 		},
 		{
 			name:    "empty addr",
-			cfg:     config.Config{Server: config.ServerConfig{Addr: ""}, Log: config.LogConfig{Level: "info", Format: "text"}, Database: okDB, Auth: okAuth},
+			cfg:     config.Config{Server: config.ServerConfig{Addr: ""}, Log: config.LogConfig{Level: "info", Format: "text"}, Database: okDB, State: okState},
 			wantErr: "server.addr",
 		},
 		{
 			name:    "addr without port",
-			cfg:     config.Config{Server: config.ServerConfig{Addr: "localhost"}, Log: config.LogConfig{Level: "info", Format: "text"}, Database: okDB, Auth: okAuth},
+			cfg:     config.Config{Server: config.ServerConfig{Addr: "localhost"}, Log: config.LogConfig{Level: "info", Format: "text"}, Database: okDB, State: okState},
 			wantErr: "server.addr",
 		},
 		{
 			name:    "bad level",
-			cfg:     config.Config{Server: config.ServerConfig{Addr: ":8080"}, Log: config.LogConfig{Level: "trace", Format: "text"}, Database: okDB, Auth: okAuth},
+			cfg:     config.Config{Server: config.ServerConfig{Addr: ":8080"}, Log: config.LogConfig{Level: "trace", Format: "text"}, Database: okDB, State: okState},
 			wantErr: "log.level",
 		},
 		{
 			name:    "bad format",
-			cfg:     config.Config{Server: config.ServerConfig{Addr: ":8080"}, Log: config.LogConfig{Level: "info", Format: "xml"}, Database: okDB, Auth: okAuth},
+			cfg:     config.Config{Server: config.ServerConfig{Addr: ":8080"}, Log: config.LogConfig{Level: "info", Format: "xml"}, Database: okDB, State: okState},
 			wantErr: "log.format",
 		},
 		{
@@ -171,7 +164,7 @@ func TestValidate(t *testing.T) {
 				Server:   config.ServerConfig{Addr: ":8080"},
 				Log:      config.LogConfig{Level: "info", Format: "text"},
 				Database: config.DatabaseConfig{Host: "localhost", Port: 5432, User: "sarga", Name: "sarga", SSLMode: "disable"},
-				Auth:     okAuth,
+				State:    okState,
 			},
 			wantErr: "database.password",
 		},
@@ -181,29 +174,14 @@ func TestValidate(t *testing.T) {
 				Server:   config.ServerConfig{Addr: ":8080"},
 				Log:      config.LogConfig{Level: "info", Format: "text"},
 				Database: config.DatabaseConfig{Host: "localhost", Port: 5432, User: "sarga", Name: "sarga", Password: "x", SSLMode: "yes"},
-				Auth:     okAuth,
+				State:    okState,
 			},
 			wantErr: "database.sslmode",
 		},
 		{
-			name: "short jwt secret",
-			cfg: config.Config{
-				Server:   config.ServerConfig{Addr: ":8080"},
-				Log:      config.LogConfig{Level: "info", Format: "text"},
-				Database: okDB,
-				Auth:     config.AuthConfig{JWTSecret: "tooshort", JWTIssuer: "sarga", JWTAudience: "sarga-web", AccessTTL: time.Minute, RefreshTTL: time.Hour},
-			},
-			wantErr: "auth.jwtsecret",
-		},
-		{
-			name: "refresh ttl shorter than access",
-			cfg: config.Config{
-				Server:   config.ServerConfig{Addr: ":8080"},
-				Log:      config.LogConfig{Level: "info", Format: "text"},
-				Database: okDB,
-				Auth:     config.AuthConfig{JWTSecret: strings.Repeat("a", 32), JWTIssuer: "sarga", JWTAudience: "sarga-web", AccessTTL: time.Hour, RefreshTTL: time.Minute},
-			},
-			wantErr: "auth.refreshttl",
+			name:    "empty state dir",
+			cfg:     config.Config{Server: config.ServerConfig{Addr: ":8080"}, Log: config.LogConfig{Level: "info", Format: "text"}, Database: okDB},
+			wantErr: "state.dir",
 		},
 	}
 
@@ -241,5 +219,4 @@ func clearSargaEnv(t *testing.T) {
 	}
 	// Provide a baseline JWT secret so Load() passes Validate. Individual tests
 	// override per-call via t.Setenv.
-	t.Setenv("SARGA_AUTH_JWTSECRET", strings.Repeat("a", 32))
 }

@@ -3,8 +3,10 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -14,7 +16,8 @@ import (
 	"github.com/sarga-app/sarga/internal/platform/config"
 	"github.com/sarga-app/sarga/internal/platform/db/queries"
 	"github.com/sarga-app/sarga/internal/platform/obs"
-	"github.com/sarga-app/sarga/internal/server/auth"
+	"github.com/sarga-app/sarga/internal/server/api"
+	"github.com/sarga-app/sarga/internal/server/api/auth"
 )
 
 const (
@@ -25,28 +28,30 @@ const (
 	writeTimeout      = 60 * time.Second
 	idleTimeout       = 120 * time.Second
 	maxHeaderBytes    = 1 << 20
+
+	jwtSecretEnvOverride = "SARGA_AUTH_JWT_SECRET" //nolint:gosec // env var name, not a credential
+	jwtSecretMinBytes    = 32
 )
 
 func Run(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool) error {
 	slog.SetDefault(obs.NewLogger(cfg.Log))
 
-	q := queries.New(pool)
-	jwtCfg := coreauth.JWTConfig{
-		Secret:    []byte(cfg.Auth.JWTSecret),
-		Issuer:    cfg.Auth.JWTIssuer,
-		Audience:  cfg.Auth.JWTAudience,
-		AccessTTL: cfg.Auth.AccessTTL,
+	secret, err := resolveJWTSecret(cfg.State.Dir)
+	if err != nil {
+		return fmt.Errorf("resolve jwt secret: %w", err)
 	}
-	authH := &auth.Handler{
-		Store:        q,
-		JWT:          jwtCfg,
-		RefreshTTL:   cfg.Auth.RefreshTTL,
-		CookieSecure: cfg.Auth.CookieSecure,
+
+	q := queries.New(pool)
+	authH := auth.NewHandler(q, coreauth.JWTConfig{Secret: secret})
+
+	deps := Deps{
+		DB:  pool,
+		API: api.Deps{Auth: authH},
 	}
 
 	srv := &http.Server{
 		Addr:              cfg.Server.Addr,
-		Handler:           newRouter(pool, authH, jwtCfg),
+		Handler:           newRouter(deps),
 		ReadHeaderTimeout: readHeaderTimeout,
 		ReadTimeout:       readTimeout,
 		WriteTimeout:      writeTimeout,
@@ -67,8 +72,8 @@ func Run(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool) error {
 	g.Go(func() error {
 		<-gctx.Done()
 		slog.Info("shutdown signal received", "timeout", shutdownTimeout)
-		// Fresh context: gctx is already cancelled by this point — using it would
-		// abort Shutdown immediately. We need a new deadline for the drain phase.
+		// Fresh context: gctx is already cancelled. A new deadline lets
+		// in-flight requests drain instead of being aborted immediately.
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 		return srv.Shutdown(shutdownCtx) //nolint:contextcheck // see comment above
@@ -79,4 +84,15 @@ func Run(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool) error {
 	}
 	slog.Info("shutdown complete")
 	return nil
+}
+
+func resolveJWTSecret(stateDir string) ([]byte, error) {
+	if env := os.Getenv(jwtSecretEnvOverride); env != "" {
+		if len(env) < jwtSecretMinBytes {
+			return nil, fmt.Errorf("%s must be at least %d bytes", jwtSecretEnvOverride, jwtSecretMinBytes)
+		}
+		slog.Info("jwt secret: using env override")
+		return []byte(env), nil
+	}
+	return coreauth.LoadOrCreateSecretFile(stateDir)
 }
