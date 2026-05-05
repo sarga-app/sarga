@@ -80,8 +80,10 @@ func TestVerify_MalformedHash(t *testing.T) {
 func TestVerify_TamperedHash(t *testing.T) {
 	t.Parallel()
 	h, _ := Hash("hunter2")
-	// Flip the last character of the encoded key — should fail to verify, not panic.
-	tampered := h[:len(h)-1] + flipChar(h[len(h)-1])
+	// Flip a char 5 positions from the end — well inside the encoded key,
+	// avoiding the trailing 2 padding bits of base64 RawStdEncoding.
+	pos := len(h) - 5
+	tampered := h[:pos] + flipChar(h[pos]) + h[pos+1:]
 	ok, _ := Verify("hunter2", tampered)
 	if ok {
 		t.Error("tampered hash should not verify")

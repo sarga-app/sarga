@@ -11,23 +11,20 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-// OWASP 2024 recommended argon2id parameters.
+// OWASP 2024 argon2id parameters.
 const (
-	argonMemoryKiB   uint32 = 64 * 1024 // 64 MiB
+	argonMemoryKiB   uint32 = 64 * 1024
 	argonIterations  uint32 = 3
 	argonParallelism uint8  = 4
 	argonSaltLen            = 16
 	argonKeyLen      uint32 = 32
 
-	// Bound the input so an attacker can't DoS the hasher with huge passwords.
-	// 1024 bytes is generous (allows passphrases) and well above any sane password.
+	// Bound input so an attacker can't DoS the hasher with huge passwords.
 	maxPasswordBytes = 1024
 )
 
 var ErrInvalidHash = errors.New("invalid argon2 hash")
 
-// Hash derives a PHC-formatted argon2id hash for the given password.
-// Generates a fresh random salt; output is suitable for direct DB storage.
 func Hash(password string) (string, error) {
 	if len(password) > maxPasswordBytes {
 		return "", fmt.Errorf("password exceeds %d bytes", maxPasswordBytes)
@@ -45,9 +42,7 @@ func Hash(password string) (string, error) {
 	), nil
 }
 
-// Verify reports whether password matches encodedHash. Returns (false, nil) for
-// a mismatch and (false, err) only if the hash is malformed. Constant-time
-// comparison defeats timing attacks.
+// Verify returns (false, nil) on mismatch, (false, err) only on a malformed hash.
 func Verify(password, encodedHash string) (bool, error) {
 	if len(password) > maxPasswordBytes {
 		return false, fmt.Errorf("password exceeds %d bytes", maxPasswordBytes)
@@ -60,9 +55,8 @@ func Verify(password, encodedHash string) (bool, error) {
 	return subtle.ConstantTimeCompare(derivedKey, storedKey) == 1, nil
 }
 
-// NeedsRehash reports whether encodedHash uses parameters older than the
-// current constants. Login handlers can call this on successful Verify and
-// silently re-hash the password to upgrade.
+// NeedsRehash is true if encodedHash uses weaker params than current constants.
+// Call after a successful Verify to silently upgrade the stored hash.
 func NeedsRehash(encodedHash string) bool {
 	params, _, _, err := decode(encodedHash)
 	if err != nil {
@@ -80,8 +74,8 @@ type hashParams struct {
 }
 
 func decode(encodedHash string) (params hashParams, salt, key []byte, err error) {
+	// PHC: ["", "argon2id", "v=N", "m=,t=,p=", "<salt>", "<key>"]
 	parts := strings.Split(encodedHash, "$")
-	// Expected: ["", "argon2id", "v=N", "m=,t=,p=", "<salt>", "<key>"]
 	if len(parts) != 6 || parts[1] != "argon2id" {
 		return hashParams{}, nil, nil, ErrInvalidHash
 	}

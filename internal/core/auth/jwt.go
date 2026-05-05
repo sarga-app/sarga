@@ -18,15 +18,13 @@ const (
 
 var ErrInvalidToken = errors.New("invalid token")
 
-// AccessClaims is the JWT payload for an access token.
-// `sarga.is_admin` is namespaced to avoid collision with future custom claims.
+// AccessClaims namespaces custom claims under "sarga." to avoid collisions.
 type AccessClaims struct {
 	jwt.RegisteredClaims
 	IsAdmin bool `json:"sarga.is_admin"`
 }
 
-// JWTConfig bundles signing parameters. Construct once at startup; pass into
-// Issue/Parse on every call. Clock is injectable so tests can simulate time.
+// JWTConfig is constructed once at startup and passed to Issue/Parse.
 type JWTConfig struct {
 	Secret    []byte
 	Issuer    string
@@ -42,8 +40,6 @@ func (c JWTConfig) now() time.Time {
 	return time.Now()
 }
 
-// IssueAccessToken returns a signed HS256 JWT carrying the user identity.
-// Token includes iss, aud, sub, exp, iat, nbf, jti, plus sarga.is_admin.
 func IssueAccessToken(cfg JWTConfig, userID uuid.UUID, isAdmin bool) (string, error) {
 	if len(cfg.Secret) == 0 {
 		return "", errors.New("jwt: empty secret")
@@ -69,9 +65,8 @@ func IssueAccessToken(cfg JWTConfig, userID uuid.UUID, isAdmin bool) (string, er
 	return signed, nil
 }
 
-// ParseAccessToken validates signature, alg, iss, aud, and exp/nbf, returning
-// the typed claims. Wraps any failure as ErrInvalidToken so callers can match
-// without inspecting library-internal error types.
+// ParseAccessToken wraps any validation failure as ErrInvalidToken so callers
+// can match without inspecting library-internal error types.
 func ParseAccessToken(cfg JWTConfig, tokenStr string) (*AccessClaims, error) {
 	if len(cfg.Secret) == 0 {
 		return nil, errors.New("jwt: empty secret")
@@ -93,7 +88,6 @@ func ParseAccessToken(cfg JWTConfig, tokenStr string) (*AccessClaims, error) {
 	return &claims, nil
 }
 
-// UserID returns the parsed subject as a uuid.UUID.
 func (c *AccessClaims) UserID() (uuid.UUID, error) {
 	id, err := uuid.Parse(c.Subject)
 	if err != nil {

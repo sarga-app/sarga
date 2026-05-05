@@ -9,16 +9,14 @@ import (
 
 const refreshTokenRawBytes = 32
 
-// RefreshToken bundles the plaintext form sent to the client with the SHA-256
-// hash stored in the DB. The plaintext never touches the database.
+// RefreshToken: plaintext goes to the client (HttpOnly cookie); hash to the DB.
 type RefreshToken struct {
-	Plaintext string // base64url, sent to client (HttpOnly cookie)
-	Hash      []byte // 32-byte SHA-256, stored in refresh_tokens.token_hash
+	Plaintext string
+	Hash      []byte
 }
 
-// IssueRefreshToken generates a fresh, cryptographically random refresh token.
-// SHA-256 (not argon2) because the plaintext is high-entropy random bytes —
-// brute-force resistance is unnecessary; speed matters for the verify path.
+// IssueRefreshToken uses SHA-256, not argon2: plaintext is 32 random bytes,
+// so brute-force resistance is unnecessary and verify-path speed matters.
 func IssueRefreshToken() (RefreshToken, error) {
 	raw := make([]byte, refreshTokenRawBytes)
 	if _, err := rand.Read(raw); err != nil {
@@ -31,8 +29,6 @@ func IssueRefreshToken() (RefreshToken, error) {
 	}, nil
 }
 
-// HashRefreshToken re-derives the storage hash from a client-supplied
-// plaintext, used during the refresh flow to look up the token row.
 func HashRefreshToken(plaintext string) ([]byte, error) {
 	raw, err := base64.RawURLEncoding.DecodeString(plaintext)
 	if err != nil {

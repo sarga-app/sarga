@@ -133,7 +133,8 @@ func TestParse_TamperedRejected(t *testing.T) {
 	t.Parallel()
 	cfg := testCfg(t)
 	tok, _ := IssueAccessToken(cfg, uuid.New(), false)
-	tampered := tok[:len(tok)-1] + flipChar(tok[len(tok)-1])
+	pos := len(tok) - 5
+	tampered := tok[:pos] + flipChar(tok[pos]) + tok[pos+1:]
 	if _, err := ParseAccessToken(cfg, tampered); err == nil {
 		t.Error("tampered token should be rejected")
 	}
