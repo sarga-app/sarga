@@ -15,3 +15,12 @@ log:
 
   # One of: text (human-readable, dev) or json (structured, prod)
   format: "text"
+
+database:
+  host: "localhost"
+  port: 5432
+  user: "sarga"
+  name: "sarga"
+  password: "sarga"
+  sslmode: "disable"
+  max_conns: 0          # 0 = auto (2 × GOMAXPROCS)
