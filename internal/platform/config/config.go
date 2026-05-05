@@ -37,7 +37,7 @@ type DatabaseConfig struct {
 	Name     string `koanf:"name"`
 	Password string `koanf:"password"`
 	SSLMode  string `koanf:"sslmode"`
-	MaxConns int32  `koanf:"max_conns"`
+	MaxConns int32  `koanf:"maxconns"`
 }
 
 func (d DatabaseConfig) LogValue() slog.Value {
@@ -47,7 +47,7 @@ func (d DatabaseConfig) LogValue() slog.Value {
 		slog.String("user", d.User),
 		slog.String("name", d.Name),
 		slog.String("sslmode", d.SSLMode),
-		slog.Int64("max_conns", int64(d.MaxConns)),
+		slog.Int("maxconns", int(d.MaxConns)),
 		slog.String("password", redactedMarker(d.Password)),
 	)
 }
@@ -60,16 +60,16 @@ func redactedMarker(s string) string {
 }
 
 var defaults = map[string]any{
-	"server.addr":        ":8080",
-	"log.level":          "info",
-	"log.format":         "text",
-	"database.host":      "localhost",
-	"database.port":      5432,
-	"database.user":      "sarga",
-	"database.name":      "sarga",
-	"database.password":  "sarga",
-	"database.sslmode":   "disable",
-	"database.max_conns": 0,
+	"server.addr":       ":8080",
+	"log.level":         "info",
+	"log.format":        "text",
+	"database.host":     "localhost",
+	"database.port":     5432,
+	"database.user":     "sarga",
+	"database.name":     "sarga",
+	"database.password": "sarga",
+	"database.sslmode":  "disable",
+	"database.maxconns": 0,
 }
 
 func Load(path string) (*Config, error) {
@@ -104,7 +104,7 @@ func Load(path string) (*Config, error) {
 	return &c, nil
 }
 
-func (c *Config) Validate() error {
+func (c Config) Validate() error {
 	if c.Server.Addr == "" {
 		return errors.New("server.addr must not be empty")
 	}
@@ -142,7 +142,7 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("database.sslmode invalid: %q", c.Database.SSLMode)
 	}
 	if c.Database.MaxConns < 0 {
-		return fmt.Errorf("database.max_conns must be >= 0, got %d", c.Database.MaxConns)
+		return fmt.Errorf("database.maxconns must be >= 0, got %d", c.Database.MaxConns)
 	}
 	if c.Database.Password == "" {
 		return errors.New("database.password must not be empty")

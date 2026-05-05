@@ -23,4 +23,4 @@ database:
   name: "sarga"
   password: "sarga"
   sslmode: "disable"
-  max_conns: 0          # 0 = auto (2 × GOMAXPROCS)
+  maxconns: 0           # 0 = auto (2 × GOMAXPROCS)
