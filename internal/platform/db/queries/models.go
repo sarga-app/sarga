@@ -3,3 +3,56 @@
 //   sqlc v1.31.1
 
 package queries
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
+type Library struct {
+	ID        uuid.UUID
+	Name      string
+	Path      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type LibraryAccess struct {
+	LibraryID uuid.UUID
+	UserID    uuid.UUID
+	Role      string
+	GrantedAt time.Time
+}
+
+type OidcIdentity struct {
+	ID          uuid.UUID
+	UserID      uuid.UUID
+	Issuer      string
+	Subject     string
+	EmailAtLink *string
+	CreatedAt   time.Time
+}
+
+type RefreshToken struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	TokenHash []byte
+	ExpiresAt time.Time
+	RevokedAt *time.Time
+	ParentID  *uuid.UUID
+	CreatedAt time.Time
+}
+
+type User struct {
+	ID                uuid.UUID
+	Username          string
+	Email             *string
+	PasswordHash      *string
+	DisplayName       *string
+	IsAdmin           bool
+	DisabledAt        *time.Time
+	PasswordChangedAt *time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
