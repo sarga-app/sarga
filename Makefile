@@ -32,11 +32,11 @@ test: ## Run all tests with race detector
 	@$(GO) test -race -count=1 ./...
 
 fmt: ## Format code (gofmt + goimports)
-	@$(GOIMPORTS) -w -local github.com/rohan-k02/sarga .
+	@$(GOIMPORTS) -w -local github.com/sarga-app/sarga .
 	@gofmt -w .
 
 fmt-check: ## Fail if formatting is needed
-	@diff=$$(gofmt -l . ; $(GOIMPORTS) -l -local github.com/rohan-k02/sarga .); \
+	@diff=$$(gofmt -l . ; $(GOIMPORTS) -l -local github.com/sarga-app/sarga .); \
 	if [ -n "$$diff" ]; then \
 	  echo "the following files need formatting (run 'make fmt'):"; \
 	  echo "$$diff"; \
