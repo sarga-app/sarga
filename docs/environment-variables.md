@@ -36,7 +36,13 @@ All variables are optional — defaults work for the standard Docker install.
 
 | Variable | Default | Description |
 |---|---|---|
-| `SARGA_AUTH_JWT_SECRET` | _(auto-generated)_ | JWT signing secret. Leave unset and sarga generates a 64-byte secret on first boot, persisted at `/data/secrets/jwt.key` (mode `0600`, never logged, never in DB backups). Set explicitly only when injecting from an external secrets manager (Docker secrets, Vault, AWS KMS, etc.) — must be at least 32 bytes. |
+| `SARGA_AUTH_JWT_SECRET` | _(auto-generated)_ | JWT signing secret. Leave unset and sarga generates a 64-byte secret on first boot, persisted at `<data-dir>/secrets/jwt.key` (mode `0600`, never logged, never in DB backups). Set explicitly only when injecting from an external secrets manager (Docker secrets, Vault, AWS KMS, etc.) — must be at least 32 bytes. |
+
+## Data directory
+
+| Variable | Default | Description |
+|---|---|---|
+| `SARGA_DATA_DIR` | `./data` | Where Sarga keeps its working files: `secrets/` (auto-generated keys), `certs/` (TLS material), `cache/`, `tmp/`. Default is `./data` relative to the working directory you launched Sarga from. For systemd, set to `/var/lib/sarga` and pair with `StateDirectory=sarga`. For Docker, the bundled `compose.yaml` mounts a named volume at `/data` — set `SARGA_DATA_DIR=/data` if you customise the mount. The path is resolved to absolute on startup; relative paths are relative to the process working directory. |
 
 ---
 

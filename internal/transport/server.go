@@ -31,7 +31,7 @@ const (
 )
 
 func Run(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool) error {
-	dirs, err := datadir.New(datadir.DefaultRoot)
+	dirs, err := datadir.New(cfg.Data.Dir)
 	if err != nil {
 		return fmt.Errorf("init data dir: %w", err)
 	}

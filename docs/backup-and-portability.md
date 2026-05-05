@@ -106,19 +106,17 @@ Open the URL in a browser — you should be back exactly where you left off.
 Your data lives in:
 
 - A Postgres database somewhere (local, remote, doesn't matter — you set this in your config)
-- A `data/` folder created **next to wherever you launched Sarga from**. It's always `./data` relative to the working directory when you ran `./sarga serve`. There is no config option to move it — if you want it elsewhere, run Sarga from that directory (or symlink).
+- A data folder controlled by `SARGA_DATA_DIR` (or `data.dir` in `config.yaml`). Defaults to `./data` next to the binary. systemd users typically set this to `/var/lib/sarga`.
 
 ### One-time: a backup script you can run any day
 
-Save this as `backup-sarga.sh` **next to your Sarga binary** (so `./data` resolves correctly):
+Save this as `backup-sarga.sh`. Set `SARGA_DATA_DIR` to match your install if you've moved it:
 
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Run this from the same directory you launch Sarga from.
-# That's where the ./data folder lives.
-
+DATA_DIR="${SARGA_DATA_DIR:-./data}"
 OUT="${1:-$HOME/sarga-backups}"
 DATE=$(date +%F)
 mkdir -p "$OUT"
@@ -129,7 +127,7 @@ pg_dump -h "${SARGA_DATABASE_HOST:-localhost}" \
         -Fc "${SARGA_DATABASE_NAME:-sarga}" > "$OUT/db-$DATE.dump"
 
 echo "→ Archiving secrets..."
-tar czf "$OUT/secrets-$DATE.tar.gz" -C ./data secrets
+tar czf "$OUT/secrets-$DATE.tar.gz" -C "$DATA_DIR" secrets
 
 echo "→ Copying config..."
 cp config.yaml "$OUT/config-$DATE.yaml" 2>/dev/null || echo "  (no config.yaml found, skipping)"

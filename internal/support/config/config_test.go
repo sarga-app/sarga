@@ -128,6 +128,7 @@ func TestValidate(t *testing.T) {
 		Host: "localhost", Port: 5432, User: "sarga", Name: "sarga",
 		Password: "sarga", SSLMode: "disable",
 	}
+	okData := config.DataConfig{Dir: "./data"}
 	tests := []struct {
 		name    string
 		cfg     config.Config
@@ -135,7 +136,12 @@ func TestValidate(t *testing.T) {
 	}{
 		{
 			name: "ok",
-			cfg:  config.Config{Server: config.ServerConfig{Addr: ":8080"}, Log: config.LogConfig{Level: "info", Format: "text"}, Database: okDB},
+			cfg:  config.Config{Server: config.ServerConfig{Addr: ":8080"}, Log: config.LogConfig{Level: "info", Format: "text"}, Database: okDB, Data: okData},
+		},
+		{
+			name:    "empty data dir",
+			cfg:     config.Config{Server: config.ServerConfig{Addr: ":8080"}, Log: config.LogConfig{Level: "info", Format: "text"}, Database: okDB},
+			wantErr: "data.dir",
 		},
 		{
 			name:    "empty addr",

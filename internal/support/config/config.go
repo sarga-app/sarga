@@ -20,6 +20,11 @@ type Config struct {
 	Log      LogConfig      `koanf:"log"`
 	Database DatabaseConfig `koanf:"database"`
 	Auth     AuthConfig     `koanf:"auth"`
+	Data     DataConfig     `koanf:"data"`
+}
+
+type DataConfig struct {
+	Dir string `koanf:"dir"`
 }
 
 type AuthConfig struct {
@@ -90,6 +95,7 @@ var defaults = map[string]any{
 	"database.sslmode":     "disable",
 	"database.maxconns":    0,
 	"database.automigrate": true,
+	"data.dir":             "./data",
 }
 
 func Load(path string) (*Config, error) {
@@ -170,6 +176,10 @@ func (c Config) Validate() error {
 
 	if s := c.Auth.JWT.Secret; s != "" && len(s) < JWTSecretMinBytes {
 		return fmt.Errorf("auth.jwt.secret must be at least %d bytes when set, got %d", JWTSecretMinBytes, len(s))
+	}
+
+	if c.Data.Dir == "" {
+		return errors.New("data.dir must not be empty")
 	}
 
 	return nil
