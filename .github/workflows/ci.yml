@@ -116,7 +116,23 @@ jobs:
 
       - name: Smoke test container
         run: |
-          docker run -d --name sarga-ci -p 8080:8080 sarga:ci serve
+          docker network create sarga-ci-net
+          docker run -d --name sarga-pg --network sarga-ci-net \
+            -e POSTGRES_USER=sarga -e POSTGRES_PASSWORD=sarga -e POSTGRES_DB=sarga \
+            --health-cmd="pg_isready -U sarga -d sarga" --health-interval=2s \
+            --health-timeout=2s --health-retries=15 \
+            postgres:17.2-alpine
+          for i in {1..30}; do
+            status=$(docker inspect --format='{{.State.Health.Status}}' sarga-pg)
+            if [ "$status" = "healthy" ]; then break; fi
+            if [ $i -eq 30 ]; then
+              echo "postgres never became healthy"; docker logs sarga-pg; exit 1
+            fi
+            sleep 1
+          done
+          docker run -d --name sarga-ci --network sarga-ci-net -p 8080:8080 \
+            -e SARGA_DATABASE_HOST=sarga-pg \
+            sarga:ci serve
           for i in {1..10}; do
             if curl -sf http://localhost:8080/healthz > /dev/null; then
               echo "healthz OK"
@@ -130,5 +146,6 @@ jobs:
             sleep 1
           done
           docker exec sarga-ci sarga healthcheck
-          docker stop sarga-ci
-          docker rm sarga-ci
+          docker stop sarga-ci sarga-pg
+          docker rm sarga-ci sarga-pg
+          docker network rm sarga-ci-net
