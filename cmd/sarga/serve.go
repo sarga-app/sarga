@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/sarga-app/sarga/internal/platform/config"
 	"github.com/sarga-app/sarga/internal/platform/db"
+	"github.com/sarga-app/sarga/internal/platform/obs"
 	"github.com/sarga-app/sarga/internal/server"
 )
 
@@ -22,6 +24,7 @@ var serveCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		slog.SetDefault(obs.NewLogger(cfg.Log))
 
 		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 		defer stop()

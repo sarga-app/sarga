@@ -15,7 +15,6 @@ import (
 	"github.com/sarga-app/sarga/internal/platform/config"
 	"github.com/sarga-app/sarga/internal/platform/datadir"
 	"github.com/sarga-app/sarga/internal/platform/db/queries"
-	"github.com/sarga-app/sarga/internal/platform/obs"
 	"github.com/sarga-app/sarga/internal/server/routes/api"
 	"github.com/sarga-app/sarga/internal/server/routes/api/auth"
 )
@@ -31,8 +30,6 @@ const (
 )
 
 func Run(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool) error {
-	slog.SetDefault(obs.NewLogger(cfg.Log))
-
 	dirs, err := datadir.New(datadir.DefaultRoot)
 	if err != nil {
 		return fmt.Errorf("init data dir: %w", err)
