@@ -1,7 +1,6 @@
 package obs
 
 import (
-	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -10,40 +9,31 @@ import (
 	"github.com/sarga-app/sarga/internal/platform/config"
 )
 
-func NewLogger(cfg config.LogConfig) (*slog.Logger, error) {
+func NewLogger(cfg config.LogConfig) *slog.Logger {
 	return newLoggerTo(os.Stdout, cfg)
 }
 
-func newLoggerTo(w io.Writer, cfg config.LogConfig) (*slog.Logger, error) {
-	level, err := parseLevel(cfg.Level)
-	if err != nil {
-		return nil, err
-	}
-	opts := &slog.HandlerOptions{Level: level}
+func newLoggerTo(w io.Writer, cfg config.LogConfig) *slog.Logger {
+	opts := &slog.HandlerOptions{Level: parseLevel(cfg.Level)}
 
 	var h slog.Handler
-	switch strings.ToLower(cfg.Format) {
-	case "text":
-		h = slog.NewTextHandler(w, opts)
-	case "json":
+	if strings.EqualFold(cfg.Format, "json") {
 		h = slog.NewJSONHandler(w, opts)
-	default:
-		return nil, fmt.Errorf("log.format must be one of text/json, got %q", cfg.Format)
+	} else {
+		h = slog.NewTextHandler(w, opts)
 	}
-	return slog.New(h), nil
+	return slog.New(h)
 }
 
-func parseLevel(s string) (slog.Level, error) {
+func parseLevel(s string) slog.Level {
 	switch strings.ToLower(s) {
 	case "debug":
-		return slog.LevelDebug, nil
-	case "info":
-		return slog.LevelInfo, nil
+		return slog.LevelDebug
 	case "warn":
-		return slog.LevelWarn, nil
+		return slog.LevelWarn
 	case "error":
-		return slog.LevelError, nil
+		return slog.LevelError
 	default:
-		return 0, fmt.Errorf("log.level must be one of debug/info/warn/error, got %q", s)
+		return slog.LevelInfo
 	}
 }

@@ -52,8 +52,7 @@ func probe(parent context.Context, addr string, timeout time.Duration) error {
 	}
 	req.Header.Set("User-Agent", "sarga-healthcheck/1")
 
-	client := &http.Client{Timeout: timeout}
-	resp, err := client.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}

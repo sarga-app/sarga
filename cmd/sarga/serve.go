@@ -1,6 +1,10 @@
 package main
 
 import (
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/spf13/cobra"
 
 	"github.com/sarga-app/sarga/internal/platform/config"
@@ -19,13 +23,16 @@ var serveCmd = &cobra.Command{
 			return err
 		}
 
-		pool, err := db.NewPool(cmd.Context(), cfg.Database)
+		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+
+		pool, err := db.NewPool(ctx, cfg.Database)
 		if err != nil {
 			return err
 		}
 		defer pool.Close()
 
-		return server.Run(cmd.Context(), cfg, pool)
+		return server.Run(ctx, cfg, pool)
 	},
 }
 

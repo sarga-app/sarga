@@ -5,9 +5,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -28,14 +25,7 @@ const (
 )
 
 func Run(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool) error {
-	logger, err := obs.NewLogger(cfg.Log)
-	if err != nil {
-		return err
-	}
-	slog.SetDefault(logger)
-
-	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	slog.SetDefault(obs.NewLogger(cfg.Log))
 
 	srv := &http.Server{
 		Addr:              cfg.Server.Addr,
