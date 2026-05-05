@@ -6,9 +6,17 @@ info:
     Native REST API for the Sarga music server. Source of truth for
     `/api/v1/*` routes. OpenSubsonic compatibility (`/rest/*`) is
     documented separately.
+  license:
+    name: AGPL-3.0-or-later
+    url: https://www.gnu.org/licenses/agpl-3.0.html
 servers:
   - url: /api/v1
     description: This server
+
+# Default: every operation requires a bearer token. Public endpoints
+# (login, refresh, logout) override with `security: []` to opt out.
+security:
+  - bearerAuth: []
 
 tags:
   - name: auth
@@ -21,6 +29,7 @@ paths:
     post:
       tags: [auth]
       operationId: loginUser
+      security: []
       summary: Exchange username + password for an access token.
       description: |
         On success, sets an HttpOnly `sarga_refresh` cookie scoped to
@@ -47,6 +56,7 @@ paths:
     post:
       tags: [auth]
       operationId: refreshSession
+      security: []
       summary: Rotate the refresh cookie and mint a new access token.
       description: |
         Reads `sarga_refresh` from the request cookie, revokes it, and issues
@@ -64,17 +74,23 @@ paths:
     post:
       tags: [auth]
       operationId: logoutUser
+      security: []
       summary: Revoke the current refresh token and clear its cookie.
+      description: |
+        Idempotent — returns 204 even if no valid session cookie was sent.
+        Server-side, the refresh token is revoked and the cookie is cleared.
       responses:
         '204': { description: Logged out. }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
 
   /me:
     get:
       tags: [identity]
       operationId: getCurrentUser
       summary: Return the caller's user id and admin flag.
-      security:
-        - bearerAuth: []
+      description: |
+        Returns the user identified by the bearer access token. Useful for
+        clients to refresh cached identity after token rotation.
       responses:
         '200':
           description: Caller identity.
@@ -135,6 +151,11 @@ components:
           schema: { $ref: '#/components/schemas/Error' }
     Unauthorized:
       description: Missing or invalid credentials.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    TooManyRequests:
+      description: Rate limit exceeded.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
