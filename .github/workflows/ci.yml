@@ -142,7 +142,6 @@ jobs:
           docker run -d --name sarga-ci --network sarga-ci-net -p 8080:8080 \
             -v sarga-ci-data:/data \
             -e SARGA_DATABASE_HOST=sarga-pg \
-            -e SARGA_STATE_DIR=/data \
             sarga:ci serve
           for i in {1..10}; do
             if curl -sf http://localhost:8080/healthz > /dev/null; then

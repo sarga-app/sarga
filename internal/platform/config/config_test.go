@@ -128,7 +128,6 @@ func TestValidate(t *testing.T) {
 		Host: "localhost", Port: 5432, User: "sarga", Name: "sarga",
 		Password: "sarga", SSLMode: "disable",
 	}
-	okState := config.StateConfig{Dir: t.TempDir()}
 	tests := []struct {
 		name    string
 		cfg     config.Config
@@ -136,26 +135,26 @@ func TestValidate(t *testing.T) {
 	}{
 		{
 			name: "ok",
-			cfg:  config.Config{Server: config.ServerConfig{Addr: ":8080"}, Log: config.LogConfig{Level: "info", Format: "text"}, Database: okDB, State: okState},
+			cfg:  config.Config{Server: config.ServerConfig{Addr: ":8080"}, Log: config.LogConfig{Level: "info", Format: "text"}, Database: okDB},
 		},
 		{
 			name:    "empty addr",
-			cfg:     config.Config{Server: config.ServerConfig{Addr: ""}, Log: config.LogConfig{Level: "info", Format: "text"}, Database: okDB, State: okState},
+			cfg:     config.Config{Server: config.ServerConfig{Addr: ""}, Log: config.LogConfig{Level: "info", Format: "text"}, Database: okDB},
 			wantErr: "server.addr",
 		},
 		{
 			name:    "addr without port",
-			cfg:     config.Config{Server: config.ServerConfig{Addr: "localhost"}, Log: config.LogConfig{Level: "info", Format: "text"}, Database: okDB, State: okState},
+			cfg:     config.Config{Server: config.ServerConfig{Addr: "localhost"}, Log: config.LogConfig{Level: "info", Format: "text"}, Database: okDB},
 			wantErr: "server.addr",
 		},
 		{
 			name:    "bad level",
-			cfg:     config.Config{Server: config.ServerConfig{Addr: ":8080"}, Log: config.LogConfig{Level: "trace", Format: "text"}, Database: okDB, State: okState},
+			cfg:     config.Config{Server: config.ServerConfig{Addr: ":8080"}, Log: config.LogConfig{Level: "trace", Format: "text"}, Database: okDB},
 			wantErr: "log.level",
 		},
 		{
 			name:    "bad format",
-			cfg:     config.Config{Server: config.ServerConfig{Addr: ":8080"}, Log: config.LogConfig{Level: "info", Format: "xml"}, Database: okDB, State: okState},
+			cfg:     config.Config{Server: config.ServerConfig{Addr: ":8080"}, Log: config.LogConfig{Level: "info", Format: "xml"}, Database: okDB},
 			wantErr: "log.format",
 		},
 		{
@@ -164,7 +163,6 @@ func TestValidate(t *testing.T) {
 				Server:   config.ServerConfig{Addr: ":8080"},
 				Log:      config.LogConfig{Level: "info", Format: "text"},
 				Database: config.DatabaseConfig{Host: "localhost", Port: 5432, User: "sarga", Name: "sarga", SSLMode: "disable"},
-				State:    okState,
 			},
 			wantErr: "database.password",
 		},
@@ -174,14 +172,8 @@ func TestValidate(t *testing.T) {
 				Server:   config.ServerConfig{Addr: ":8080"},
 				Log:      config.LogConfig{Level: "info", Format: "text"},
 				Database: config.DatabaseConfig{Host: "localhost", Port: 5432, User: "sarga", Name: "sarga", Password: "x", SSLMode: "yes"},
-				State:    okState,
 			},
 			wantErr: "database.sslmode",
-		},
-		{
-			name:    "empty state dir",
-			cfg:     config.Config{Server: config.ServerConfig{Addr: ":8080"}, Log: config.LogConfig{Level: "info", Format: "text"}, Database: okDB},
-			wantErr: "state.dir",
 		},
 	}
 

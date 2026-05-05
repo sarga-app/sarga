@@ -1,8 +1,8 @@
 package server
 
 import (
-	"github.com/sarga-app/sarga/internal/server/api"
-	"github.com/sarga-app/sarga/internal/server/health"
+	"github.com/sarga-app/sarga/internal/server/routes/api"
+	"github.com/sarga-app/sarga/internal/server/routes/health"
 )
 
 // Deps is the full set of cross-family dependencies the router composes.

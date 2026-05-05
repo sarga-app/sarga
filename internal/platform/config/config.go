@@ -18,15 +18,31 @@ import (
 type Config struct {
 	Server   ServerConfig   `koanf:"server"`
 	Log      LogConfig      `koanf:"log"`
-	State    StateConfig    `koanf:"state"`
 	Database DatabaseConfig `koanf:"database"`
+	Auth     AuthConfig     `koanf:"auth"`
 }
 
-// StateConfig: writable directory sarga owns for secrets, transcoding cache,
-// scan checkpoints. In docker: mount a volume here.
-type StateConfig struct {
-	Dir string `koanf:"dir"`
+// AuthConfig holds optional auth overrides. The only knob is the JWT signing
+// secret, which is auto-generated and persisted to <data>/secrets/jwt.key on
+// first boot if left empty here. Set via SARGA_AUTH_JWT_SECRET when injecting
+// from Docker secrets / Vault / external KMS — must be ≥32 bytes.
+type AuthConfig struct {
+	JWT JWTConfig `koanf:"jwt"`
 }
+
+type JWTConfig struct {
+	Secret string `koanf:"secret"`
+}
+
+func (a AuthConfig) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("jwt.secret", redactedMarker(a.JWT.Secret)),
+	)
+}
+
+// JWTSecretMinBytes is the minimum length enforced when an operator supplies
+// auth.jwt.secret explicitly. Auto-generated secrets are always 64 bytes.
+const JWTSecretMinBytes = 32
 
 type ServerConfig struct {
 	Addr string `koanf:"addr"`
@@ -80,7 +96,6 @@ var defaults = map[string]any{
 	"database.sslmode":     "disable",
 	"database.maxconns":    0,
 	"database.automigrate": true,
-	"state.dir":            "./data",
 }
 
 func Load(path string) (*Config, error) {
@@ -159,8 +174,8 @@ func (c Config) Validate() error {
 		return errors.New("database.password must not be empty")
 	}
 
-	if c.State.Dir == "" {
-		return errors.New("state.dir must not be empty")
+	if s := c.Auth.JWT.Secret; s != "" && len(s) < JWTSecretMinBytes {
+		return fmt.Errorf("auth.jwt.secret must be at least %d bytes when set, got %d", JWTSecretMinBytes, len(s))
 	}
 
 	return nil

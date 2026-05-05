@@ -10,9 +10,9 @@ import (
 
 func TestLoadOrCreateSecretFile_GeneratesOnFirstRun(t *testing.T) {
 	t.Parallel()
-	dir := t.TempDir()
+	path := filepath.Join(t.TempDir(), JWTSecretFileName)
 
-	secret, err := LoadOrCreateSecretFile(dir)
+	secret, err := LoadOrCreateSecretFile(path)
 	if err != nil {
 		t.Fatalf("first call: %v", err)
 	}
@@ -20,7 +20,7 @@ func TestLoadOrCreateSecretFile_GeneratesOnFirstRun(t *testing.T) {
 		t.Errorf("secret len = %d, want %d", len(secret), secretBytes)
 	}
 
-	info, err := os.Stat(filepath.Join(dir, SecretFileName))
+	info, err := os.Stat(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,10 +31,10 @@ func TestLoadOrCreateSecretFile_GeneratesOnFirstRun(t *testing.T) {
 
 func TestLoadOrCreateSecretFile_ReusesExisting(t *testing.T) {
 	t.Parallel()
-	dir := t.TempDir()
+	path := filepath.Join(t.TempDir(), JWTSecretFileName)
 
-	first, _ := LoadOrCreateSecretFile(dir)
-	second, _ := LoadOrCreateSecretFile(dir)
+	first, _ := LoadOrCreateSecretFile(path)
+	second, _ := LoadOrCreateSecretFile(path)
 	if !bytes.Equal(first, second) {
 		t.Error("second call returned a different secret")
 	}
@@ -42,39 +42,22 @@ func TestLoadOrCreateSecretFile_ReusesExisting(t *testing.T) {
 
 func TestLoadOrCreateSecretFile_RejectsLoosePerms(t *testing.T) {
 	t.Parallel()
-	dir := t.TempDir()
-	path := filepath.Join(dir, SecretFileName)
+	path := filepath.Join(t.TempDir(), JWTSecretFileName)
 	if err := os.WriteFile(path, bytes.Repeat([]byte{1}, 64), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := LoadOrCreateSecretFile(dir); err == nil {
+	if _, err := LoadOrCreateSecretFile(path); err == nil {
 		t.Error("expected error for 0644 secret file")
 	}
 }
 
 func TestLoadOrCreateSecretFile_RejectsTruncated(t *testing.T) {
 	t.Parallel()
-	dir := t.TempDir()
-	path := filepath.Join(dir, SecretFileName)
+	path := filepath.Join(t.TempDir(), JWTSecretFileName)
 	if err := os.WriteFile(path, []byte{1, 2, 3}, secretFileMode); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := LoadOrCreateSecretFile(dir); err == nil {
+	if _, err := LoadOrCreateSecretFile(path); err == nil {
 		t.Error("expected error for truncated secret file")
-	}
-}
-
-func TestLoadOrCreateSecretFile_CreatesMissingDir(t *testing.T) {
-	t.Parallel()
-	dir := filepath.Join(t.TempDir(), "nested", "state")
-	if _, err := LoadOrCreateSecretFile(dir); err != nil {
-		t.Fatalf("create nested dir: %v", err)
-	}
-	info, err := os.Stat(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !info.IsDir() {
-		t.Error("expected directory at nested path")
 	}
 }

@@ -3,7 +3,7 @@ package api
 import (
 	"github.com/go-chi/chi/v5"
 
-	"github.com/sarga-app/sarga/internal/server/api/auth"
+	"github.com/sarga-app/sarga/internal/server/routes/api/auth"
 )
 
 func Mount(r chi.Router, d Deps) {

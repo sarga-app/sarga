@@ -1,25 +1,12 @@
-# sarga configuration
-#
-# Copy this file to config.yaml and edit. Or set values via environment
-# variables prefixed with SARGA_ (e.g. SARGA_SERVER_ADDR=:9090).
-# Env vars override the file. The file overrides defaults shown below.
+# sarga configuration. Copy to config.yaml and edit, or override any value
+# with SARGA_*_* env vars (e.g. SARGA_SERVER_ADDR=:9090).
 
 server:
-  # Address to listen on. Use ":8080" for all interfaces, "127.0.0.1:8080"
-  # for localhost only.
   addr: ":8080"
 
 log:
-  # One of: debug, info, warn, error
-  level: "info"
-
-  # One of: text (human-readable, dev) or json (structured, prod)
-  format: "text"
-
-state:
-  # Writable directory for sarga's persistent state: JWT signing key, transcode
-  # cache, scan checkpoints. In docker, mount a volume here. Back this up.
-  dir: "./data"
+  level: "info"      # debug | info | warn | error
+  format: "text"     # text | json
 
 database:
   host: "localhost"
@@ -28,15 +15,11 @@ database:
   name: "sarga"
   password: "sarga"
   sslmode: "disable"
-  maxconns: 0           # 0 = auto (2 × GOMAXPROCS)
-
-  # Apply pending schema migrations automatically on `sarga serve` startup.
-  # Disable if you run multiple sarga instances and prefer to apply migrations
-  # explicitly via `sarga migrate up` from one of them.
+  maxconns: 0        # 0 = auto
   automigrate: true
 
-# Auth has no operator knobs by default. JWT signing secret is auto-generated
-# on first boot at <state.dir>/secret.key (0600 perms, never logged, never
-# in DB backups). Override at deploy time with SARGA_AUTH_JWT_SECRET if you
-# inject secrets via Docker secrets / Vault / external KMS — must be ≥32 bytes.
-# Cookie Secure flag is derived from the request's TLS state.
+auth:
+  jwt:
+    # Leave blank — auto-generated on first boot. Set only if injecting from
+    # Docker secrets / Vault. Prefer SARGA_AUTH_JWT_SECRET over writing it here.
+    secret: ""

@@ -7,9 +7,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
 
-	"github.com/sarga-app/sarga/internal/server/api"
-	"github.com/sarga-app/sarga/internal/server/health"
 	"github.com/sarga-app/sarga/internal/server/middleware"
+	"github.com/sarga-app/sarga/internal/server/routes/api"
+	"github.com/sarga-app/sarga/internal/server/routes/health"
 )
 
 const requestTimeout = 60 * time.Second

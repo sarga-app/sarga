@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -14,10 +13,11 @@ import (
 
 	coreauth "github.com/sarga-app/sarga/internal/core/auth"
 	"github.com/sarga-app/sarga/internal/platform/config"
+	"github.com/sarga-app/sarga/internal/platform/datadir"
 	"github.com/sarga-app/sarga/internal/platform/db/queries"
 	"github.com/sarga-app/sarga/internal/platform/obs"
-	"github.com/sarga-app/sarga/internal/server/api"
-	"github.com/sarga-app/sarga/internal/server/api/auth"
+	"github.com/sarga-app/sarga/internal/server/routes/api"
+	"github.com/sarga-app/sarga/internal/server/routes/api/auth"
 )
 
 const (
@@ -28,15 +28,16 @@ const (
 	writeTimeout      = 60 * time.Second
 	idleTimeout       = 120 * time.Second
 	maxHeaderBytes    = 1 << 20
-
-	jwtSecretEnvOverride = "SARGA_AUTH_JWT_SECRET" //nolint:gosec // env var name, not a credential
-	jwtSecretMinBytes    = 32
 )
 
 func Run(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool) error {
 	slog.SetDefault(obs.NewLogger(cfg.Log))
 
-	secret, err := resolveJWTSecret(cfg.State.Dir)
+	dirs, err := datadir.New(datadir.DefaultRoot)
+	if err != nil {
+		return fmt.Errorf("init data dir: %w", err)
+	}
+	secret, err := resolveJWTSecret(cfg.Auth.JWT.Secret, dirs)
 	if err != nil {
 		return fmt.Errorf("resolve jwt secret: %w", err)
 	}
@@ -86,13 +87,17 @@ func Run(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool) error {
 	return nil
 }
 
-func resolveJWTSecret(stateDir string) ([]byte, error) {
-	if env := os.Getenv(jwtSecretEnvOverride); env != "" {
-		if len(env) < jwtSecretMinBytes {
-			return nil, fmt.Errorf("%s must be at least %d bytes", jwtSecretEnvOverride, jwtSecretMinBytes)
-		}
-		slog.Info("jwt secret: using env override")
-		return []byte(env), nil
+// resolveJWTSecret returns the JWT signing secret. If configured (via YAML or
+// SARGA_AUTH_JWT_SECRET env), uses that — it's already length-validated by
+// Config.Validate. Otherwise loads/generates the file at <data>/secrets/jwt.key.
+func resolveJWTSecret(configured string, dirs *datadir.Dirs) ([]byte, error) {
+	if configured != "" {
+		slog.Info("jwt secret: using configured override")
+		return []byte(configured), nil
 	}
-	return coreauth.LoadOrCreateSecretFile(stateDir)
+	path, err := dirs.SecretFile(coreauth.JWTSecretFileName)
+	if err != nil {
+		return nil, err
+	}
+	return coreauth.LoadOrCreateSecretFile(path)
 }

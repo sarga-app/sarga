@@ -17,24 +17,23 @@ const (
 	DefaultAudience = "sarga-web"
 )
 
-const (
-	SecretFileName = "secret.key"
+// JWTSecretFileName is the filename (within state's secrets/ subdir)
+// where the auto-generated JWT signing secret is persisted.
+const JWTSecretFileName = "jwt.key"
 
+const (
 	secretBytes    = 64
 	secretFileMode = 0o600
-	stateDirMode   = 0o700
 	minSecretBytes = 32
 )
 
-// LoadOrCreateSecretFile returns the JWT signing secret stored at <stateDir>/secret.key,
+// LoadOrCreateSecretFile returns the JWT signing secret stored at path,
 // generating a fresh 64-byte secret on first run. Race-safe across concurrent
 // boots and crash-safe (fsync + atomic create-only via hardlink).
-func LoadOrCreateSecretFile(stateDir string) ([]byte, error) {
-	if err := ensureStateDir(stateDir); err != nil {
-		return nil, fmt.Errorf("state dir: %w", err)
-	}
-	path := filepath.Join(stateDir, SecretFileName)
-
+//
+// Caller is responsible for ensuring filepath.Dir(path) exists with safe
+// permissions (use platform/state.SecretFile).
+func LoadOrCreateSecretFile(path string) ([]byte, error) {
 	if data, err := readSecret(path); err == nil {
 		return data, nil
 	} else if !errors.Is(err, fs.ErrNotExist) {
@@ -54,23 +53,6 @@ func LoadOrCreateSecretFile(stateDir string) ([]byte, error) {
 	}
 	slog.Info("jwt secret: generated and persisted", "path", path)
 	return fresh, nil
-}
-
-func ensureStateDir(dir string) error {
-	info, err := os.Stat(dir)
-	if errors.Is(err, fs.ErrNotExist) {
-		return os.MkdirAll(dir, stateDirMode)
-	}
-	if err != nil {
-		return err
-	}
-	if !info.IsDir() {
-		return fmt.Errorf("%s is not a directory", dir)
-	}
-	if perm := info.Mode().Perm(); perm&0o077 != 0 {
-		slog.Warn("state dir is world/group readable", "dir", dir, "perm", perm)
-	}
-	return nil
 }
 
 func readSecret(path string) ([]byte, error) {
