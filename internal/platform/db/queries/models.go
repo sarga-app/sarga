@@ -8,7 +8,31 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type Artist struct {
+	ID        uuid.UUID
+	Mbid      *uuid.UUID
+	Name      string
+	SortName  string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type CoverArt struct {
+	ID             uuid.UUID
+	ReleaseID      *uuid.UUID
+	ReleaseGroupID *uuid.UUID
+	ArtistID       *uuid.UUID
+	SourceKind     string
+	Uri            string
+	Width          *int32
+	Height         *int32
+	ContentHash    []byte
+	IsPreferred    bool
+	FetchedAt      time.Time
+}
 
 type Library struct {
 	ID        uuid.UUID
@@ -25,6 +49,30 @@ type LibraryAccess struct {
 	GrantedAt time.Time
 }
 
+type ListeningEvent struct {
+	ID                 uuid.UUID
+	UserID             uuid.UUID
+	TrackID            uuid.UUID
+	TrackFileID        *uuid.UUID
+	PlayedAt           time.Time
+	DurationListenedMs int32
+	Completed          bool
+	Source             string
+	ClientName         *string
+	ClientVersion      *string
+	CreatedAt          time.Time
+}
+
+type Lyric struct {
+	ID        uuid.UUID
+	TrackID   uuid.UUID
+	Source    string
+	IsSynced  bool
+	Language  *string
+	Content   string
+	FetchedAt time.Time
+}
+
 type OidcIdentity struct {
 	ID          uuid.UUID
 	UserID      uuid.UUID
@@ -32,6 +80,24 @@ type OidcIdentity struct {
 	Subject     string
 	EmailAtLink *string
 	CreatedAt   time.Time
+}
+
+type Playlist struct {
+	ID          uuid.UUID
+	OwnerID     uuid.UUID
+	Name        string
+	Description *string
+	IsPublic    bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type PlaylistTrack struct {
+	PlaylistID uuid.UUID
+	Position   int32
+	TrackID    uuid.UUID
+	AddedByID  *uuid.UUID
+	AddedAt    time.Time
 }
 
 type RefreshToken struct {
@@ -42,6 +108,117 @@ type RefreshToken struct {
 	RevokedAt *time.Time
 	ParentID  *uuid.UUID
 	CreatedAt time.Time
+}
+
+type Release struct {
+	ID             uuid.UUID
+	Mbid           *uuid.UUID
+	ReleaseGroupID uuid.UUID
+	Title          string
+	Country        *string
+	ReleaseDate    pgtype.Date
+	LabelName      *string
+	Barcode        *string
+	EditionNotes   *string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type ReleaseArtist struct {
+	ReleaseID uuid.UUID
+	ArtistID  uuid.UUID
+	Position  int32
+	Role      string
+}
+
+type ReleaseGroup struct {
+	ID               uuid.UUID
+	Mbid             *uuid.UUID
+	Title            string
+	PrimaryType      string
+	FirstReleaseYear *int32
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type ReleaseTrack struct {
+	ReleaseID  uuid.UUID
+	TrackID    uuid.UUID
+	DiscNumber int32
+	Position   int32
+}
+
+type ScanRun struct {
+	ID           uuid.UUID
+	LibraryID    uuid.UUID
+	StartedAt    time.Time
+	FinishedAt   *time.Time
+	Status       string
+	FilesScanned int32
+	FilesAdded   int32
+	FilesUpdated int32
+	FilesRemoved int32
+	Error        *string
+}
+
+type ScrobbleOutbox struct {
+	ID               uuid.UUID
+	ListeningEventID uuid.UUID
+	ScrobbleTargetID uuid.UUID
+	Status           string
+	AttemptCount     int32
+	LastAttemptedAt  *time.Time
+	LastError        *string
+	CreatedAt        time.Time
+	SentAt           *time.Time
+}
+
+type ScrobbleTarget struct {
+	ID         uuid.UUID
+	UserID     uuid.UUID
+	Kind       string
+	SessionKey string
+	Enabled    bool
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+type Track struct {
+	ID         uuid.UUID
+	Mbid       *uuid.UUID
+	Title      string
+	DurationMs *int32
+	Isrc       *string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+type TrackArtist struct {
+	TrackID  uuid.UUID
+	ArtistID uuid.UUID
+	Position int32
+	Role     string
+}
+
+type TrackFile struct {
+	ID            uuid.UUID
+	TrackID       uuid.UUID
+	LibraryID     uuid.UUID
+	RelativePath  string
+	Format        string
+	Codec         string
+	BitrateKbps   *int32
+	SampleRateHz  *int32
+	BitDepth      *int32
+	Channels      int32
+	FileSizeBytes int64
+	Mtime         time.Time
+	ContentHash   []byte
+	SourceKind    string
+	IsLossless    bool
+	IsPreferred   bool
+	AddedAt       time.Time
+	UpdatedAt     time.Time
 }
 
 type User struct {
