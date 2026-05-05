@@ -47,65 +47,48 @@ jobs:
           check-latest: false
           cache: true
 
-      - name: Cache goimports binary
-        id: cache-goimports
+      - name: Cache Go tool binaries
+        id: cache-gotools
         uses: actions/cache@v5
         with:
-          path: ~/go/bin/goimports
-          key: goimports-${{ runner.os }}-${{ env.GO_VERSION }}-v0.44.0
+          path: |
+            ~/go/bin/goimports
+            ~/go/bin/govulncheck
+          key: gotools-${{ runner.os }}-${{ env.GO_VERSION }}-goimports-v0.44.0-govulncheck-v1.1.4
 
-      - name: Install goimports (on cache miss)
-        if: steps.cache-goimports.outputs.cache-hit != 'true'
-        run: go install golang.org/x/tools/cmd/goimports@v0.44.0
-
-      - name: Cache govulncheck binary
-        id: cache-govulncheck
-        uses: actions/cache@v5
-        with:
-          path: ~/go/bin/govulncheck
-          key: govulncheck-${{ runner.os }}-${{ env.GO_VERSION }}-v1.1.4
-
-      - name: Install govulncheck (on cache miss)
-        if: steps.cache-govulncheck.outputs.cache-hit != 'true'
-        run: go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
-
-      - name: Cache vendored Scalar bundle
-        uses: actions/cache@v5
-        with:
-          path: internal/transport/routes/api/docs/scalar-standalone.js
-          key: scalar-${{ hashFiles('Makefile') }}
-
-      - name: Cache npm (for npx @redocly/cli)
-        uses: actions/cache@v5
-        with:
-          path: ~/.npm
-          key: npm-${{ runner.os }}-redocly
-
-      - name: Vendor third-party assets
-        run: make vendor
-
-      - name: Verify go.mod / go.sum are tidy
-        run: make tidy-check
+      - name: Install Go tools (on cache miss)
+        if: steps.cache-gotools.outputs.cache-hit != 'true'
+        run: |
+          go install golang.org/x/tools/cmd/goimports@v0.44.0
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
 
       - name: Install sqlc
         uses: sqlc-dev/setup-sqlc@c0209b9199cd1cce6a14fc27cabcec491b651761 # v4
         with:
           sqlc-version: '1.31.1'
 
-      - name: Verify generated sqlc code is up to date
-        run: make sqlc-check
+      - name: Cache vendored assets and npm
+        uses: actions/cache@v5
+        with:
+          path: |
+            internal/transport/routes/api/docs/scalar-standalone.js
+            ~/.npm
+          key: vendor-${{ runner.os }}-${{ hashFiles('Makefile') }}-redocly
 
-      - name: Verify generated OpenAPI code is up to date
-        run: make api-check
+      - name: Vendor third-party assets
+        run: make vendor
 
-      - name: Lint OpenAPI spec
-        run: npx -y @redocly/cli@latest lint --config api/redocly.yaml
+      - name: Verify generated artefacts (go.mod, sqlc, oapi, openapi spec)
+        run: |
+          make tidy-check
+          make sqlc-check
+          make api-check
+          npx -y @redocly/cli@latest lint --config api/redocly.yaml
 
-      - name: Format check
-        run: make fmt-check
-
-      - name: Vet
-        run: make vet
+      - name: Format and vet
+        run: |
+          make fmt-check
+          make vet
 
       - name: Lint
         uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
@@ -119,11 +102,9 @@ jobs:
       - name: Vulnerability check
         run: govulncheck ./...
 
-      - name: Build binary
-        run: make build
-
-      - name: Smoke test binary
+      - name: Build and smoke test binary
         run: |
+          make build
           ./sarga version
           ./sarga --help
           ./sarga healthcheck && exit 1 || true   # expect non-zero (no server)
