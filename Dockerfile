@@ -5,8 +5,11 @@ FROM golang:1.26.2-alpine AS build
 
 WORKDIR /src
 
-# curl is used in this stage to fetch vendored third-party assets (Scalar bundle).
-RUN apk add --no-cache curl make
+# Tools used in the build stage:
+#   curl  — fetch vendored third-party assets (Scalar bundle)
+#   make  — drives the vendor target
+#   bash  — Makefile sets SHELL := /bin/bash (Alpine ships ash by default)
+RUN apk add --no-cache curl make bash
 
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod \
