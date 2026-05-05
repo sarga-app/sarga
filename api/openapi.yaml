@@ -28,9 +28,9 @@ paths:
   /auth/login:
     post:
       tags: [auth]
-      operationId: loginUser
+      operationId: login
       security: []
-      summary: Exchange username + password for an access token.
+      summary: Log in
       description: |
         On success, sets an HttpOnly `sarga_refresh` cookie scoped to
         `/api/v1/auth` and returns a short-lived bearer access token.
@@ -55,9 +55,9 @@ paths:
   /auth/refresh:
     post:
       tags: [auth]
-      operationId: refreshSession
+      operationId: refresh
       security: []
-      summary: Rotate the refresh cookie and mint a new access token.
+      summary: Rotate session
       description: |
         Reads `sarga_refresh` from the request cookie, revokes it, and issues
         a new pair (cookie + access token). Reuse of a revoked token revokes
@@ -73,9 +73,9 @@ paths:
   /auth/logout:
     post:
       tags: [auth]
-      operationId: logoutUser
+      operationId: logout
       security: []
-      summary: Revoke the current refresh token and clear its cookie.
+      summary: Log out
       description: |
         Idempotent — returns 204 even if no valid session cookie was sent.
         Server-side, the refresh token is revoked and the cookie is cleared.
@@ -86,8 +86,8 @@ paths:
   /me:
     get:
       tags: [identity]
-      operationId: getCurrentUser
-      summary: Return the caller's user id and admin flag.
+      operationId: me
+      summary: Current user
       description: |
         Returns the user identified by the bearer access token. Useful for
         clients to refresh cached identity after token rotation.

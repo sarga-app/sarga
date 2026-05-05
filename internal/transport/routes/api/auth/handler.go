@@ -14,7 +14,12 @@ import (
 	domauth "github.com/sarga-app/sarga/internal/domain/auth"
 	"github.com/sarga-app/sarga/internal/support/db/queries"
 	"github.com/sarga-app/sarga/internal/transport/httpx"
+	"github.com/sarga-app/sarga/internal/transport/routes/api/gen"
 )
+
+// Compile-time assertion: Handler must implement every operation defined in
+// api/openapi.yaml. Spec changes break the build until handlers catch up.
+var _ gen.ServerInterface = (*Handler)(nil)
 
 type Handler struct {
 	store Store
@@ -26,7 +31,7 @@ func NewHandler(store Store, jwt domauth.JWTConfig) *Handler {
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	var req LoginRequest
+	var req gen.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid_request", "malformed request body")
 		return
@@ -137,8 +142,8 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	uid, _ := domauth.UserIDFrom(r.Context())
-	httpx.WriteJSON(w, http.StatusOK, MeResponse{
-		UserID:  uid.String(),
+	httpx.WriteJSON(w, http.StatusOK, gen.MeResponse{
+		UserId:  uid,
 		IsAdmin: domauth.IsAdminFrom(r.Context()),
 	})
 }
@@ -185,7 +190,7 @@ func (h *Handler) issueSession(w http.ResponseWriter, r *http.Request, user quer
 		return err
 	}
 	setRefreshCookie(w, r, refresh.Plaintext)
-	httpx.WriteJSON(w, http.StatusOK, LoginResponse{
+	httpx.WriteJSON(w, http.StatusOK, gen.LoginResponse{
 		AccessToken: access,
 		ExpiresIn:   int(domauth.AccessTTL.Seconds()),
 	})

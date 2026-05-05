@@ -64,50 +64,50 @@ type Unauthorized = Error
 // bearerAuthContextKey is the context key for bearerAuth security scheme
 type bearerAuthContextKey string
 
-// LoginUserJSONRequestBody defines body for LoginUser for application/json ContentType.
-type LoginUserJSONRequestBody = LoginRequest
+// LoginJSONRequestBody defines body for Login for application/json ContentType.
+type LoginJSONRequestBody = LoginRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Exchange username + password for an access token.
+	// Log in
 	// (POST /auth/login)
-	LoginUser(w http.ResponseWriter, r *http.Request)
-	// Revoke the current refresh token and clear its cookie.
+	Login(w http.ResponseWriter, r *http.Request)
+	// Log out
 	// (POST /auth/logout)
-	LogoutUser(w http.ResponseWriter, r *http.Request)
-	// Rotate the refresh cookie and mint a new access token.
+	Logout(w http.ResponseWriter, r *http.Request)
+	// Rotate session
 	// (POST /auth/refresh)
-	RefreshSession(w http.ResponseWriter, r *http.Request)
-	// Return the caller's user id and admin flag.
+	Refresh(w http.ResponseWriter, r *http.Request)
+	// Current user
 	// (GET /me)
-	GetCurrentUser(w http.ResponseWriter, r *http.Request)
+	Me(w http.ResponseWriter, r *http.Request)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
 
-// Exchange username + password for an access token.
+// Log in
 // (POST /auth/login)
-func (_ Unimplemented) LoginUser(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) Login(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// Revoke the current refresh token and clear its cookie.
+// Log out
 // (POST /auth/logout)
-func (_ Unimplemented) LogoutUser(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) Logout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// Rotate the refresh cookie and mint a new access token.
+// Rotate session
 // (POST /auth/refresh)
-func (_ Unimplemented) RefreshSession(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) Refresh(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// Return the caller's user id and admin flag.
+// Current user
 // (GET /me)
-func (_ Unimplemented) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) Me(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -120,11 +120,11 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(http.Handler) http.Handler
 
-// LoginUser operation middleware
-func (siw *ServerInterfaceWrapper) LoginUser(w http.ResponseWriter, r *http.Request) {
+// Login operation middleware
+func (siw *ServerInterfaceWrapper) Login(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.LoginUser(w, r)
+		siw.Handler.Login(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -134,11 +134,11 @@ func (siw *ServerInterfaceWrapper) LoginUser(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
-// LogoutUser operation middleware
-func (siw *ServerInterfaceWrapper) LogoutUser(w http.ResponseWriter, r *http.Request) {
+// Logout operation middleware
+func (siw *ServerInterfaceWrapper) Logout(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.LogoutUser(w, r)
+		siw.Handler.Logout(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -148,11 +148,11 @@ func (siw *ServerInterfaceWrapper) LogoutUser(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
-// RefreshSession operation middleware
-func (siw *ServerInterfaceWrapper) RefreshSession(w http.ResponseWriter, r *http.Request) {
+// Refresh operation middleware
+func (siw *ServerInterfaceWrapper) Refresh(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.RefreshSession(w, r)
+		siw.Handler.Refresh(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -162,8 +162,8 @@ func (siw *ServerInterfaceWrapper) RefreshSession(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
-// GetCurrentUser operation middleware
-func (siw *ServerInterfaceWrapper) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
+// Me operation middleware
+func (siw *ServerInterfaceWrapper) Me(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
@@ -172,7 +172,7 @@ func (siw *ServerInterfaceWrapper) GetCurrentUser(w http.ResponseWriter, r *http
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetCurrentUser(w, r)
+		siw.Handler.Me(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -296,16 +296,16 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/auth/login", wrapper.LoginUser)
+		r.Post(options.BaseURL+"/auth/login", wrapper.Login)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/auth/logout", wrapper.LogoutUser)
+		r.Post(options.BaseURL+"/auth/logout", wrapper.Logout)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/auth/refresh", wrapper.RefreshSession)
+		r.Post(options.BaseURL+"/auth/refresh", wrapper.Refresh)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/me", wrapper.GetCurrentUser)
+		r.Get(options.BaseURL+"/me", wrapper.Me)
 	})
 
 	return r
@@ -316,29 +316,28 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

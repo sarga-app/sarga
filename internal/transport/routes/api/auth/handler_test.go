@@ -18,6 +18,7 @@ import (
 
 	domauth "github.com/sarga-app/sarga/internal/domain/auth"
 	"github.com/sarga-app/sarga/internal/support/db/queries"
+	"github.com/sarga-app/sarga/internal/transport/routes/api/gen"
 )
 
 type fakeStore struct {
@@ -167,7 +168,7 @@ func TestLogin_Success(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rr.Code, rr.Body.String())
 	}
-	var resp LoginResponse
+	var resp gen.LoginResponse
 	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
 		t.Fatal(err)
 	}
@@ -284,7 +285,7 @@ func TestLogout_RevokesAndClears(t *testing.T) {
 
 func doLogin(t *testing.T, h *Handler, username, password string) *httptest.ResponseRecorder {
 	t.Helper()
-	body, _ := json.Marshal(LoginRequest{Username: username, Password: password})
+	body, _ := json.Marshal(gen.LoginRequest{Username: username, Password: password})
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", bytes.NewReader(body))
 	rr := httptest.NewRecorder()
 	h.Login(rr, req)
