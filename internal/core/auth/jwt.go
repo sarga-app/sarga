@@ -86,8 +86,8 @@ func ParseAccessToken(cfg JWTConfig, tokenStr string) (*AccessClaims, error) {
 		return nil, errors.New("jwt: empty secret")
 	}
 	parser := jwt.NewParser(
-		jwt.WithIssuer(cfg.Issuer),
-		jwt.WithAudience(cfg.Audience),
+		jwt.WithIssuer(cfg.issuer()),
+		jwt.WithAudience(cfg.audience()),
 		jwt.WithValidMethods([]string{signingMethod}),
 		jwt.WithExpirationRequired(),
 		jwt.WithTimeFunc(cfg.now),

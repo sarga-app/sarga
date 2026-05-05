@@ -147,3 +147,28 @@ func TestIssue_EmptySecretRejected(t *testing.T) {
 		t.Error("Issue with empty secret should error")
 	}
 }
+
+// Regression: production server constructs JWTConfig with Secret only and
+// relies on issuer()/audience() defaulting on both Issue AND Parse paths.
+// Earlier, Parse used the raw cfg.Issuer/cfg.Audience (empty strings) and
+// rejected every token.
+func TestIssueAndParse_DefaultIssuerAudience(t *testing.T) {
+	t.Parallel()
+	cfg := JWTConfig{Secret: []byte("test-secret-at-least-32-bytes-long!!")}
+	uid := uuid.New()
+
+	tok, err := IssueAccessToken(cfg, uid, true)
+	if err != nil {
+		t.Fatalf("Issue: %v", err)
+	}
+	claims, err := ParseAccessToken(cfg, tok)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if claims.Issuer != DefaultIssuer {
+		t.Errorf("Issuer = %q, want %q", claims.Issuer, DefaultIssuer)
+	}
+	if len(claims.Audience) != 1 || claims.Audience[0] != DefaultAudience {
+		t.Errorf("Audience = %v, want [%q]", claims.Audience, DefaultAudience)
+	}
+}
