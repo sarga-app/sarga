@@ -8,10 +8,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/sarga-app/sarga/internal/platform/config"
-	"github.com/sarga-app/sarga/internal/platform/db"
-	"github.com/sarga-app/sarga/internal/platform/obs"
-	"github.com/sarga-app/sarga/internal/server"
+	"github.com/sarga-app/sarga/internal/support/config"
+	"github.com/sarga-app/sarga/internal/support/db"
+	"github.com/sarga-app/sarga/internal/support/telemetry"
+	"github.com/sarga-app/sarga/internal/transport"
 )
 
 var serveConfigPath string
@@ -24,7 +24,7 @@ var serveCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		slog.SetDefault(obs.NewLogger(cfg.Log))
+		slog.SetDefault(telemetry.NewLogger(cfg.Log))
 
 		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
@@ -41,7 +41,7 @@ var serveCmd = &cobra.Command{
 		}
 		defer pool.Close()
 
-		return server.Run(ctx, cfg, pool)
+		return transport.Run(ctx, cfg, pool)
 	},
 }
 

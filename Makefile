@@ -23,7 +23,16 @@ help: ## Show this help
 	      /^[a-zA-Z_-]+:.*?## / { printf "    \033[36m%-14s\033[0m %s\n", $$1, $$2 } \
 	      END { print "" }' $(MAKEFILE_LIST)
 
-build: ## Build the sarga binary (version injected from git describe)
+SCALAR_VERSION := 1.35.5
+SCALAR_BUNDLE  := internal/transport/routes/api/docs/scalar-standalone.js
+
+vendor: $(SCALAR_BUNDLE) ## Fetch all vendored third-party assets
+
+$(SCALAR_BUNDLE): ## Download the pinned Scalar API reference bundle
+	@echo "fetching scalar@$(SCALAR_VERSION)"
+	@curl -sSLf -o $@ "https://cdn.jsdelivr.net/npm/@scalar/api-reference@$(SCALAR_VERSION)/dist/browser/standalone.js"
+
+build: $(SCALAR_BUNDLE) ## Build the sarga binary (version injected from git describe)
 	@$(GO) build $(GOFLAGS) -o $(BIN) $(PKG)
 
 run: build ## Build and run `sarga serve`
@@ -86,4 +95,4 @@ tools: ## Install dev tools (golangci-lint, govulncheck, goimports)
 
 ci: tidy-check fmt-check vet lint test vuln sqlc-check build ## Run the full CI bundle locally
 
-.PHONY: help build run test fmt fmt-check vet lint vuln tidy tidy-check sqlc sqlc-check docker clean tools ci
+.PHONY: help build run test fmt fmt-check vet lint vuln tidy tidy-check sqlc sqlc-check docker clean tools ci vendor

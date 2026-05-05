@@ -36,3 +36,6 @@ AGENTS.md
 config.local.yaml
 /data/
 /cache/
+
+# Vendored assets (fetched via `make vendor`)
+internal/transport/routes/api/docs/scalar-standalone.js
