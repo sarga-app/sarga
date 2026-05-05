@@ -12,6 +12,7 @@ GO          ?= go
 GOLANGCI    ?= golangci-lint
 GOVULNCHECK ?= govulncheck
 GOIMPORTS   ?= goimports
+SQLC        ?= sqlc
 
 .DEFAULT_GOAL := help
 
@@ -52,6 +53,12 @@ lint: ## Run golangci-lint (install via `make tools`)
 vuln: ## Run govulncheck (install via `make tools`)
 	@$(GOVULNCHECK) ./...
 
+sqlc: ## Regenerate sqlc Go code from migrations + queries
+	@$(SQLC) generate
+
+sqlc-check: ## Fail if generated sqlc code is out of date
+	@$(SQLC) diff
+
 tidy: ## Tidy go.mod / go.sum
 	@$(GO) mod tidy
 
@@ -77,6 +84,6 @@ tools: ## Install dev tools (golangci-lint, govulncheck, goimports)
 	@$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	@echo "ensure $$($(GO) env GOPATH)/bin is on your PATH"
 
-ci: tidy-check fmt-check vet lint test vuln build ## Run the full CI bundle locally
+ci: tidy-check fmt-check vet lint test vuln sqlc-check build ## Run the full CI bundle locally
 
-.PHONY: help build run test fmt fmt-check vet lint vuln tidy tidy-check docker clean tools ci
+.PHONY: help build run test fmt fmt-check vet lint vuln tidy tidy-check sqlc sqlc-check docker clean tools ci
