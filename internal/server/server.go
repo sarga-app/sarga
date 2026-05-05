@@ -10,8 +10,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/sync/errgroup"
 
+	coreauth "github.com/sarga-app/sarga/internal/core/auth"
 	"github.com/sarga-app/sarga/internal/platform/config"
+	"github.com/sarga-app/sarga/internal/platform/db/queries"
 	"github.com/sarga-app/sarga/internal/platform/obs"
+	"github.com/sarga-app/sarga/internal/server/auth"
 )
 
 const (
@@ -27,9 +30,23 @@ const (
 func Run(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool) error {
 	slog.SetDefault(obs.NewLogger(cfg.Log))
 
+	q := queries.New(pool)
+	jwtCfg := coreauth.JWTConfig{
+		Secret:    []byte(cfg.Auth.JWTSecret),
+		Issuer:    cfg.Auth.JWTIssuer,
+		Audience:  cfg.Auth.JWTAudience,
+		AccessTTL: cfg.Auth.AccessTTL,
+	}
+	authH := &auth.Handler{
+		Store:        q,
+		JWT:          jwtCfg,
+		RefreshTTL:   cfg.Auth.RefreshTTL,
+		CookieSecure: cfg.Auth.CookieSecure,
+	}
+
 	srv := &http.Server{
 		Addr:              cfg.Server.Addr,
-		Handler:           newRouter(pool),
+		Handler:           newRouter(pool, authH, jwtCfg),
 		ReadHeaderTimeout: readHeaderTimeout,
 		ReadTimeout:       readTimeout,
 		WriteTimeout:      writeTimeout,

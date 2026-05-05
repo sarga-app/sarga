@@ -29,3 +29,14 @@ database:
   # Disable if you run multiple sarga instances and prefer to apply migrations
   # explicitly via `sarga migrate up` from one of them.
   automigrate: true
+
+auth:
+  # Required. Generate with: openssl rand -base64 48
+  # Set via SARGA_AUTH_JWTSECRET in production; do NOT commit to git.
+  jwtsecret: ""
+
+  jwtissuer:    "sarga"
+  jwtaudience:  "sarga-web"
+  accessttl:    "30m"
+  refreshttl:   "720h"   # 30 days
+  cookiesecure: true     # set false for plaintext-HTTP local dev

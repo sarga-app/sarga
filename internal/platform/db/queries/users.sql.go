@@ -11,6 +11,48 @@ import (
 	"github.com/google/uuid"
 )
 
+const createUser = `-- name: CreateUser :one
+INSERT INTO users (
+    username, email, password_hash, display_name, is_admin, password_changed_at
+) VALUES (
+    $1, $2, $3, $4, $5, CASE WHEN $3::text IS NOT NULL THEN now() ELSE NULL END
+)
+RETURNING id, username, email, password_hash, display_name,
+          is_admin, disabled_at, password_changed_at, created_at, updated_at
+`
+
+type CreateUserParams struct {
+	Username     string
+	Email        *string
+	PasswordHash *string
+	DisplayName  *string
+	IsAdmin      bool
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, createUser,
+		arg.Username,
+		arg.Email,
+		arg.PasswordHash,
+		arg.DisplayName,
+		arg.IsAdmin,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.PasswordHash,
+		&i.DisplayName,
+		&i.IsAdmin,
+		&i.DisabledAt,
+		&i.PasswordChangedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT
     id, username, email, password_hash, display_name,
@@ -90,4 +132,21 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const updateUserPassword = `-- name: UpdateUserPassword :exec
+UPDATE users
+SET password_hash       = $2,
+    password_changed_at = now()
+WHERE id = $1
+`
+
+type UpdateUserPasswordParams struct {
+	ID           uuid.UUID
+	PasswordHash *string
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
+	_, err := q.db.Exec(ctx, updateUserPassword, arg.ID, arg.PasswordHash)
+	return err
 }
