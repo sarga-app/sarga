@@ -40,6 +40,14 @@ All variables are optional — defaults work for the standard Docker install.
 
 ---
 
+## System env vars sarga honours
+
+These aren't `SARGA_*` knobs — they're standard POSIX/Go env vars the runtime picks up automatically when set in the container.
+
+| Variable | Effect |
+|---|---|
+| `TZ` | Sets the container timezone (e.g. `America/New_York`, `Europe/London`, `Asia/Kolkata`). Affects log timestamp display. Default is UTC. Per-user timezones for scrobbles / year-in-music are stored on the user record and unaffected by this. |
+
 ## Naming convention
 
 Env var names map directly to nested config keys:
