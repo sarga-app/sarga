@@ -1,0 +1,279 @@
+@startuml sarga-db
+' Sarga DB ER diagram — generated from migrations/0001..0003
+' Render: plantuml docs/db-er.puml  (or any PlantUML viewer)
+
+!define PK(x) <b><color:#b8860b>x</color></b>
+!define FK(x) <i>x</i>
+hide circle
+hide empty members
+skinparam linetype ortho
+skinparam roundcorner 6
+skinparam shadowing false
+skinparam class {
+  BackgroundColor<<auth>>      #FDF6E3
+  BackgroundColor<<library>>   #E8F4FD
+  BackgroundColor<<catalog>>   #EAF7EA
+  BackgroundColor<<media>>     #F5F0FA
+  BackgroundColor<<listening>> #FFF0E6
+  BackgroundColor<<ops>>       #F0F0F0
+  BorderColor #555
+}
+
+' ───────── Auth ─────────
+entity users <<auth>> {
+  PK(id) : uuid
+  --
+  username : text  <<unique>>
+  email : text  <<unique?>>
+  password_hash : text
+  display_name : text
+  is_admin : bool
+  disabled_at : timestamptz
+  password_changed_at : timestamptz
+  created_at / updated_at
+}
+
+entity oidc_identities <<auth>> {
+  PK(id) : uuid
+  FK(user_id) : uuid
+  --
+  issuer : text
+  subject : text
+  email_at_link : text
+  (issuer, subject) <<unique>>
+}
+
+entity refresh_tokens <<auth>> {
+  PK(id) : uuid
+  FK(user_id) : uuid
+  FK(parent_id) : uuid
+  --
+  token_hash : bytea(32) <<unique>>
+  expires_at / revoked_at
+}
+
+' ───────── Libraries ─────────
+entity libraries <<library>> {
+  PK(id) : uuid
+  --
+  name : text <<unique>>
+  path : text
+  created_at / updated_at
+}
+
+entity library_access <<library>> {
+  PK FK(library_id) : uuid
+  PK FK(user_id) : uuid
+  --
+  role : viewer|contributor|admin
+  granted_at
+}
+
+' ───────── Catalog ─────────
+entity artists <<catalog>> {
+  PK(id) : uuid
+  --
+  mbid : uuid <<unique?>>
+  name : text
+  sort_name : text
+}
+
+entity release_groups <<catalog>> {
+  PK(id) : uuid
+  --
+  mbid : uuid <<unique?>>
+  title : text
+  primary_type : album|ep|single|...
+  first_release_year : int
+}
+
+entity releases <<catalog>> {
+  PK(id) : uuid
+  FK(release_group_id) : uuid
+  --
+  mbid : uuid <<unique?>>
+  title : text
+  country / release_date
+  label_name / barcode / edition_notes
+}
+
+entity release_artists <<catalog>> {
+  PK FK(release_id) : uuid
+  PK FK(artist_id) : uuid
+  PK role : primary|feature|...
+  --
+  position : int
+}
+
+entity tracks <<catalog>> {
+  PK(id) : uuid
+  --
+  mbid : uuid <<unique?>>
+  title : text
+  duration_ms : int
+  isrc : text
+}
+
+entity release_tracks <<catalog>> {
+  PK FK(release_id) : uuid
+  PK disc_number : int
+  PK position : int
+  --
+  FK(track_id) : uuid
+}
+
+entity track_artists <<catalog>> {
+  PK FK(track_id) : uuid
+  PK FK(artist_id) : uuid
+  PK role : primary|feature|...
+  --
+  position : int
+}
+
+' ───────── Media files / extras ─────────
+entity track_files <<media>> {
+  PK(id) : uuid
+  FK(track_id) : uuid
+  FK(library_id) : uuid
+  --
+  relative_path : text
+  format / codec
+  bitrate_kbps / sample_rate_hz / bit_depth / channels
+  file_size_bytes : bigint
+  mtime : timestamptz
+  content_hash : bytea(16)
+  source_kind : unknown|rip|purchase|import|manual
+  is_lossless : bool
+  is_preferred : bool   ' partial-unique per track
+  (library_id, relative_path) <<unique>>
+}
+
+entity lyrics <<media>> {
+  PK(id) : uuid
+  FK(track_id) : uuid
+  --
+  source : lrclib|embedded|manual
+  is_synced : bool
+  language : text
+  content : text
+  (track_id, source) <<unique>>
+}
+
+entity cover_art <<media>> {
+  PK(id) : uuid
+  FK(release_id)? : uuid
+  FK(release_group_id)? : uuid
+  FK(artist_id)? : uuid
+  --
+  source_kind : caa|folder|embedded|manual
+  uri / width / height
+  content_hash : bytea
+  is_preferred : bool
+  ' exactly one of the three FKs is non-null
+}
+
+' ───────── Listening / playlists ─────────
+entity playlists <<listening>> {
+  PK(id) : uuid
+  FK(owner_id) : uuid
+  --
+  name : text  ' unique per owner (lowercased)
+  description : text
+  is_public : bool
+}
+
+entity playlist_tracks <<listening>> {
+  PK FK(playlist_id) : uuid
+  PK position : int
+  --
+  FK(track_id) : uuid
+  FK(added_by_id)? : uuid
+  added_at
+}
+
+entity listening_events <<listening>> {
+  PK(id) : uuid
+  FK(user_id) : uuid
+  FK(track_id) : uuid
+  FK(track_file_id)? : uuid
+  --
+  played_at : timestamptz
+  duration_listened_ms : int
+  completed : bool
+  source : web|subsonic|*_import
+  client_name / client_version
+}
+
+entity scrobble_targets <<listening>> {
+  PK(id) : uuid
+  FK(user_id) : uuid
+  --
+  kind : lastfm|listenbrainz
+  session_key : text
+  enabled : bool
+  (user_id, kind) <<unique>>
+}
+
+entity scrobble_outbox <<listening>> {
+  PK(id) : uuid
+  FK(listening_event_id) : uuid
+  FK(scrobble_target_id) : uuid
+  --
+  status : pending|sent|failed|permanent_failure
+  attempt_count / last_attempted_at / last_error
+  sent_at
+  (listening_event_id, scrobble_target_id) <<unique>>
+}
+
+' ───────── Ops ─────────
+entity scan_runs <<ops>> {
+  PK(id) : uuid
+  FK(library_id) : uuid
+  --
+  started_at / finished_at
+  status : running|completed|failed|cancelled
+  files_scanned / files_added / files_updated / files_removed
+  error : text
+}
+
+' ───────── Relationships ─────────
+users        ||--o{ oidc_identities    : "has"
+users        ||--o{ refresh_tokens     : "issues"
+refresh_tokens ||--o{ refresh_tokens   : "rotates (parent)"
+
+users        ||--o{ library_access     : "granted"
+libraries    ||--o{ library_access     : "grants"
+
+release_groups ||--o{ releases         : "has"
+releases     ||--o{ release_artists    : ""
+artists      ||--o{ release_artists    : ""
+
+releases     ||--o{ release_tracks     : ""
+tracks       ||--o{ release_tracks     : ""
+tracks       ||--o{ track_artists      : ""
+artists      ||--o{ track_artists      : ""
+
+tracks       ||--o{ track_files        : "has"
+libraries    ||--o{ track_files        : "stores"
+tracks       ||--o{ lyrics             : ""
+
+releases       ||--o{ cover_art        : "(one of)"
+release_groups ||--o{ cover_art        : "(one of)"
+artists        ||--o{ cover_art        : "(one of)"
+
+users        ||--o{ playlists          : "owns"
+playlists    ||--o{ playlist_tracks    : ""
+tracks       ||--o{ playlist_tracks    : ""
+users        ||--o{ playlist_tracks    : "added_by"
+
+users        ||--o{ listening_events   : "played"
+tracks       ||--o{ listening_events   : ""
+track_files  ||--o{ listening_events   : "(file used)"
+
+users            ||--o{ scrobble_targets : "configures"
+listening_events ||--o{ scrobble_outbox  : ""
+scrobble_targets ||--o{ scrobble_outbox  : ""
+
+libraries    ||--o{ scan_runs          : ""
+
+@enduml
