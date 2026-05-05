@@ -1,17 +1,19 @@
-package config
+package config_test
 
 import (
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sarga-app/sarga/internal/platform/config"
 )
 
 func TestLoad_DefaultsOnly(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	clearSargaEnv(t)
 
-	c, err := Load("")
+	c, err := config.Load("")
 	if err != nil {
 		t.Fatalf("Load(\"\"): %v", err)
 	}
@@ -26,10 +28,11 @@ func TestLoad_DefaultsOnly(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // mutates process env via clearSargaEnv
 func TestLoad_MissingFileFallsBackToDefaults(t *testing.T) {
 	clearSargaEnv(t)
 
-	c, err := Load(filepath.Join(t.TempDir(), "does-not-exist.yaml"))
+	c, err := config.Load(filepath.Join(t.TempDir(), "does-not-exist.yaml"))
 	if err != nil {
 		t.Fatalf("Load(missing): %v", err)
 	}
@@ -38,6 +41,7 @@ func TestLoad_MissingFileFallsBackToDefaults(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // mutates process env via clearSargaEnv
 func TestLoad_YAMLOverridesDefaults(t *testing.T) {
 	clearSargaEnv(t)
 
@@ -47,7 +51,7 @@ func TestLoad_YAMLOverridesDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c, err := Load(path)
+	c, err := config.Load(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
@@ -74,7 +78,7 @@ func TestLoad_EnvOverridesYAML(t *testing.T) {
 	t.Setenv("SARGA_SERVER_ADDR", ":7777")
 	t.Setenv("SARGA_LOG_LEVEL", "warn")
 
-	c, err := Load(path)
+	c, err := config.Load(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
@@ -89,6 +93,7 @@ func TestLoad_EnvOverridesYAML(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // mutates process env via clearSargaEnv
 func TestLoad_BadYAMLReturnsError(t *testing.T) {
 	clearSargaEnv(t)
 
@@ -97,7 +102,7 @@ func TestLoad_BadYAMLReturnsError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := Load(path); err == nil {
+	if _, err := config.Load(path); err == nil {
 		t.Fatal("Load(bad yaml): want error, got nil")
 	}
 }
@@ -107,7 +112,7 @@ func TestLoad_InvalidValuesFailValidation(t *testing.T) {
 
 	t.Setenv("SARGA_LOG_LEVEL", "trace")
 
-	_, err := Load("")
+	_, err := config.Load("")
 	if err == nil {
 		t.Fatal("Load(invalid log.level): want error, got nil")
 	}
@@ -117,54 +122,56 @@ func TestLoad_InvalidValuesFailValidation(t *testing.T) {
 }
 
 func TestValidate(t *testing.T) {
-	okDB := DatabaseConfig{
+	t.Parallel()
+
+	okDB := config.DatabaseConfig{
 		Host: "localhost", Port: 5432, User: "sarga", Name: "sarga",
 		Password: "sarga", SSLMode: "disable",
 	}
 	tests := []struct {
 		name    string
-		cfg     Config
+		cfg     config.Config
 		wantErr string
 	}{
 		{
 			name: "ok",
-			cfg:  Config{Server: ServerConfig{Addr: ":8080"}, Log: LogConfig{Level: "info", Format: "text"}, Database: okDB},
+			cfg:  config.Config{Server: config.ServerConfig{Addr: ":8080"}, Log: config.LogConfig{Level: "info", Format: "text"}, Database: okDB},
 		},
 		{
 			name:    "empty addr",
-			cfg:     Config{Server: ServerConfig{Addr: ""}, Log: LogConfig{Level: "info", Format: "text"}, Database: okDB},
+			cfg:     config.Config{Server: config.ServerConfig{Addr: ""}, Log: config.LogConfig{Level: "info", Format: "text"}, Database: okDB},
 			wantErr: "server.addr",
 		},
 		{
 			name:    "addr without port",
-			cfg:     Config{Server: ServerConfig{Addr: "localhost"}, Log: LogConfig{Level: "info", Format: "text"}, Database: okDB},
+			cfg:     config.Config{Server: config.ServerConfig{Addr: "localhost"}, Log: config.LogConfig{Level: "info", Format: "text"}, Database: okDB},
 			wantErr: "server.addr",
 		},
 		{
 			name:    "bad level",
-			cfg:     Config{Server: ServerConfig{Addr: ":8080"}, Log: LogConfig{Level: "trace", Format: "text"}, Database: okDB},
+			cfg:     config.Config{Server: config.ServerConfig{Addr: ":8080"}, Log: config.LogConfig{Level: "trace", Format: "text"}, Database: okDB},
 			wantErr: "log.level",
 		},
 		{
 			name:    "bad format",
-			cfg:     Config{Server: ServerConfig{Addr: ":8080"}, Log: LogConfig{Level: "info", Format: "xml"}, Database: okDB},
+			cfg:     config.Config{Server: config.ServerConfig{Addr: ":8080"}, Log: config.LogConfig{Level: "info", Format: "xml"}, Database: okDB},
 			wantErr: "log.format",
 		},
 		{
 			name: "empty db password",
-			cfg: Config{
-				Server:   ServerConfig{Addr: ":8080"},
-				Log:      LogConfig{Level: "info", Format: "text"},
-				Database: DatabaseConfig{Host: "localhost", Port: 5432, User: "sarga", Name: "sarga", SSLMode: "disable"},
+			cfg: config.Config{
+				Server:   config.ServerConfig{Addr: ":8080"},
+				Log:      config.LogConfig{Level: "info", Format: "text"},
+				Database: config.DatabaseConfig{Host: "localhost", Port: 5432, User: "sarga", Name: "sarga", SSLMode: "disable"},
 			},
 			wantErr: "database.password",
 		},
 		{
 			name: "bad sslmode",
-			cfg: Config{
-				Server:   ServerConfig{Addr: ":8080"},
-				Log:      LogConfig{Level: "info", Format: "text"},
-				Database: DatabaseConfig{Host: "localhost", Port: 5432, User: "sarga", Name: "sarga", Password: "x", SSLMode: "yes"},
+			cfg: config.Config{
+				Server:   config.ServerConfig{Addr: ":8080"},
+				Log:      config.LogConfig{Level: "info", Format: "text"},
+				Database: config.DatabaseConfig{Host: "localhost", Port: 5432, User: "sarga", Name: "sarga", Password: "x", SSLMode: "yes"},
 			},
 			wantErr: "database.sslmode",
 		},
@@ -172,6 +179,8 @@ func TestValidate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			err := tt.cfg.Validate()
 			if tt.wantErr == "" {
 				if err != nil {
