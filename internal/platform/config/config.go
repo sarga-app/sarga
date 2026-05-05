@@ -82,7 +82,7 @@ var defaults = map[string]any{
 	"server.addr":          ":8080",
 	"log.level":            "info",
 	"log.format":           "text",
-	"database.host":        "localhost",
+	"database.host":        "postgres",
 	"database.port":        5432,
 	"database.user":        "sarga",
 	"database.name":        "sarga",

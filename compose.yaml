@@ -1,40 +1,34 @@
-name: sarga-dev
-
-# Default `docker compose up` runs ONLY postgres — for local Go-based dev
-# (`make run`). To also run sarga in a container, use the `prod` profile:
-#   docker compose --profile prod up --build
+name: sarga
 
 services:
   postgres:
-    image: postgres:17.2-alpine
     container_name: sarga-postgres
+    image: postgres:17.2-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: sarga
-      POSTGRES_PASSWORD: ${SARGA_DB_PASSWORD:-sarga}
       POSTGRES_DB: sarga
+      POSTGRES_PASSWORD: ${SARGA_DATABASE_PASSWORD}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
       - sarga-pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sarga -d sarga"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 3s
       retries: 10
       start_period: 10s
 
   sarga:
-    profiles: [prod]
-    build: .
     container_name: sarga
+    image: ghcr.io/sarga-app/sarga:latest
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
-    environment:
-      SARGA_DATABASE_HOST: postgres
-      # SARGA_AUTH_JWT_SECRET: ${SARGA_AUTH_JWT_SECRET}
+    env_file:
+      - .env
     ports:
       - "8080:8080"
     volumes:
@@ -42,4 +36,6 @@ services:
 
 volumes:
   sarga-pgdata:
+    name: sarga-pgdata
   sarga-data:
+    name: sarga-data
