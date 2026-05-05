@@ -17,6 +17,9 @@ func RequestLogger(next http.Handler) http.Handler {
 		start := time.Now()
 
 		defer func() {
+			if r.URL.Path == "/healthz" && ww.Status() < 400 {
+				return
+			}
 			slog.Info("request",
 				"method", r.Method,
 				"path", r.URL.Path,

@@ -49,8 +49,18 @@ func MigrateUp(ctx context.Context, cfg config.DatabaseConfig) error {
 	if err != nil {
 		return err
 	}
-	if _, err := p.Up(ctx); err != nil {
+	results, err := p.Up(ctx)
+	if err != nil {
 		return fmt.Errorf("migrate up: %w", err)
+	}
+	if len(results) == 0 {
+		slog.Info("migrations: schema already up to date")
+	} else {
+		slog.Info("migrations: applied",
+			"count", len(results),
+			"from", results[0].Source.Version,
+			"to", results[len(results)-1].Source.Version,
+		)
 	}
 	return nil
 }

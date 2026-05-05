@@ -38,7 +38,7 @@ RUN apk add --no-cache \
 
 COPY --from=build /out/sarga /usr/local/bin/sarga
 
-RUN mkdir -p /data && chown -R 65532:65532 /data
+RUN mkdir -p /data && chown -R 65532:65532 /data && chmod 0700 /data
 WORKDIR /
 USER 65532:65532
 
