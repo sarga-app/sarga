@@ -10,15 +10,13 @@ import (
 	"path/filepath"
 )
 
-// Issuer / Audience are not user-configurable. Tuning them changes the
+// Issuer / Audience are not user-configurable: tuning them changes the
 // security model — code change + audit, not a config knob.
 const (
 	DefaultIssuer   = "sarga"
 	DefaultAudience = "sarga-web"
 )
 
-// JWTSecretFileName is the filename (within state's secrets/ subdir)
-// where the auto-generated JWT signing secret is persisted.
 const JWTSecretFileName = "jwt.key"
 
 const (
@@ -27,12 +25,6 @@ const (
 	minSecretBytes = 32
 )
 
-// LoadOrCreateSecretFile returns the JWT signing secret stored at path,
-// generating a fresh 64-byte secret on first run. Race-safe across concurrent
-// boots and crash-safe (fsync + atomic create-only via hardlink).
-//
-// Caller is responsible for ensuring filepath.Dir(path) exists with safe
-// permissions (use platform/state.SecretFile).
 func LoadOrCreateSecretFile(path string) ([]byte, error) {
 	if data, err := readSecret(path); err == nil {
 		return data, nil

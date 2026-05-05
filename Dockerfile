@@ -38,11 +38,6 @@ RUN apk add --no-cache \
 
 COPY --from=build /out/sarga /usr/local/bin/sarga
 
-# Persistent data at /data — standard self-hosted convention (Navidrome,
-# Vaultwarden, Gitea, ...). datadir.DefaultRoot is "./data" (relative); with
-# WORKDIR=/ that resolves to /data. Operators mount a volume there.
-# Pre-created with correct ownership so the unprivileged uid can write
-# before any volume mount overlays it.
 RUN mkdir -p /data && chown -R 65532:65532 /data
 WORKDIR /
 USER 65532:65532

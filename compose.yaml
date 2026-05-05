@@ -34,16 +34,12 @@ services:
         condition: service_healthy
     environment:
       SARGA_DATABASE_HOST: postgres
-      # JWT signing secret is auto-generated at /data/secrets/jwt.key.
-      # Override only if injecting via Docker secrets / Vault / external KMS (≥32 bytes):
       # SARGA_AUTH_JWT_SECRET: ${SARGA_AUTH_JWT_SECRET}
     ports:
       - "8080:8080"
     volumes:
-      # Container path /data is fixed (standard self-hosted convention).
-      # Change the host-side (left of `:`) if you want, never the container-side.
       - sarga-data:/data
 
 volumes:
-  sarga-pgdata:    # Postgres data — back this up.
-  sarga-data:      # Sarga's data dir (secrets/, certs/, cache/, tmp/) — back up secrets/ + certs/.
+  sarga-pgdata:
+  sarga-data:

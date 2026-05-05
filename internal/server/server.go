@@ -87,9 +87,6 @@ func Run(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool) error {
 	return nil
 }
 
-// resolveJWTSecret returns the JWT signing secret. If configured (via YAML or
-// SARGA_AUTH_JWT_SECRET env), uses that — it's already length-validated by
-// Config.Validate. Otherwise loads/generates the file at <data>/secrets/jwt.key.
 func resolveJWTSecret(configured string, dirs *datadir.Dirs) ([]byte, error) {
 	if configured != "" {
 		slog.Info("jwt secret: using configured override")

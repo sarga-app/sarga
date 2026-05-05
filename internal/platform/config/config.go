@@ -22,10 +22,6 @@ type Config struct {
 	Auth     AuthConfig     `koanf:"auth"`
 }
 
-// AuthConfig holds optional auth overrides. The only knob is the JWT signing
-// secret, which is auto-generated and persisted to <data>/secrets/jwt.key on
-// first boot if left empty here. Set via SARGA_AUTH_JWT_SECRET when injecting
-// from Docker secrets / Vault / external KMS — must be ≥32 bytes.
 type AuthConfig struct {
 	JWT JWTConfig `koanf:"jwt"`
 }
@@ -40,8 +36,6 @@ func (a AuthConfig) LogValue() slog.Value {
 	)
 }
 
-// JWTSecretMinBytes is the minimum length enforced when an operator supplies
-// auth.jwt.secret explicitly. Auto-generated secrets are always 64 bytes.
 const JWTSecretMinBytes = 32
 
 type ServerConfig struct {
