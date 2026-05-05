@@ -24,3 +24,8 @@ database:
   password: "sarga"
   sslmode: "disable"
   maxconns: 0           # 0 = auto (2 × GOMAXPROCS)
+
+  # Apply pending schema migrations automatically on `sarga serve` startup.
+  # Disable if you run multiple sarga instances and prefer to apply migrations
+  # explicitly via `sarga migrate up` from one of them.
+  automigrate: true

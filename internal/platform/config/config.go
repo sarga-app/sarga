@@ -31,13 +31,14 @@ type LogConfig struct {
 }
 
 type DatabaseConfig struct {
-	Host     string `koanf:"host"`
-	Port     int    `koanf:"port"`
-	User     string `koanf:"user"`
-	Name     string `koanf:"name"`
-	Password string `koanf:"password"`
-	SSLMode  string `koanf:"sslmode"`
-	MaxConns int32  `koanf:"maxconns"`
+	Host        string `koanf:"host"`
+	Port        int    `koanf:"port"`
+	User        string `koanf:"user"`
+	Name        string `koanf:"name"`
+	Password    string `koanf:"password"`
+	SSLMode     string `koanf:"sslmode"`
+	MaxConns    int32  `koanf:"maxconns"`
+	AutoMigrate bool   `koanf:"automigrate"`
 }
 
 func (d DatabaseConfig) LogValue() slog.Value {
@@ -48,6 +49,7 @@ func (d DatabaseConfig) LogValue() slog.Value {
 		slog.String("name", d.Name),
 		slog.String("sslmode", d.SSLMode),
 		slog.Int("maxconns", int(d.MaxConns)),
+		slog.Bool("automigrate", d.AutoMigrate),
 		slog.String("password", redactedMarker(d.Password)),
 	)
 }
@@ -60,16 +62,17 @@ func redactedMarker(s string) string {
 }
 
 var defaults = map[string]any{
-	"server.addr":       ":8080",
-	"log.level":         "info",
-	"log.format":        "text",
-	"database.host":     "localhost",
-	"database.port":     5432,
-	"database.user":     "sarga",
-	"database.name":     "sarga",
-	"database.password": "sarga",
-	"database.sslmode":  "disable",
-	"database.maxconns": 0,
+	"server.addr":          ":8080",
+	"log.level":            "info",
+	"log.format":           "text",
+	"database.host":        "localhost",
+	"database.port":        5432,
+	"database.user":        "sarga",
+	"database.name":        "sarga",
+	"database.password":    "sarga",
+	"database.sslmode":     "disable",
+	"database.maxconns":    0,
+	"database.automigrate": true,
 }
 
 func Load(path string) (*Config, error) {

@@ -26,6 +26,12 @@ var serveCmd = &cobra.Command{
 		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 
+		if cfg.Database.AutoMigrate {
+			if mErr := db.MigrateUp(ctx, cfg.Database); mErr != nil {
+				return mErr
+			}
+		}
+
 		pool, err := db.NewPool(ctx, cfg.Database)
 		if err != nil {
 			return err
