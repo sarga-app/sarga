@@ -1,0 +1,8 @@
+package: gen
+output: internal/transport/routes/api/gen/api.gen.go
+generate:
+  models: true
+  chi-server: true
+  embedded-spec: true
+output-options:
+  skip-prune: false

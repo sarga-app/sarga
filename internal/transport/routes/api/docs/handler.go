@@ -2,15 +2,11 @@ package docs
 
 import (
 	_ "embed"
-	"encoding/json"
 	"fmt"
 	"net/http"
 
-	"github.com/knadh/koanf/parsers/yaml"
+	"github.com/sarga-app/sarga/internal/transport/routes/api/gen"
 )
-
-//go:embed openapi.yaml
-var openAPIYAML []byte
 
 //go:embed viewer.html
 var viewerHTML []byte
@@ -23,13 +19,9 @@ type Handler struct {
 }
 
 func NewHandler() (*Handler, error) {
-	doc, err := yaml.Parser().Unmarshal(openAPIYAML)
+	buf, err := gen.GetSpecJSON()
 	if err != nil {
-		return nil, fmt.Errorf("parse openapi.yaml: %w", err)
-	}
-	buf, err := json.Marshal(doc)
-	if err != nil {
-		return nil, fmt.Errorf("marshal openapi: %w", err)
+		return nil, fmt.Errorf("load embedded openapi spec: %w", err)
 	}
 	return &Handler{specJSON: buf}, nil
 }

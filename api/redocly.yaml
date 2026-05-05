@@ -1,0 +1,15 @@
+extends:
+  - recommended
+
+apis:
+  sarga@v1:
+    root: openapi.yaml
+
+rules:
+  operation-operationId: error
+  operation-summary: error
+  operation-description: warn
+  operation-tag-defined: error
+  no-unused-components: warn
+  spec-strict-refs: error
+  no-server-trailing-slash: error

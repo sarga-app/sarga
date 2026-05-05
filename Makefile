@@ -68,6 +68,20 @@ sqlc: ## Regenerate sqlc Go code from migrations + queries
 sqlc-check: ## Fail if generated sqlc code is out of date
 	@$(SQLC) diff
 
+api-lint: ## Lint the OpenAPI spec with Redocly CLI (uses npx)
+	@npx -y @redocly/cli@latest lint --config api/redocly.yaml
+
+api-gen: ## Regenerate Go code from api/openapi.yaml (oapi-codegen)
+	@$(GO) tool oapi-codegen -config api/oapi-codegen.yaml api/openapi.yaml
+
+api-check: ## Fail if api/gen is out of date with api/openapi.yaml
+	@$(GO) tool oapi-codegen -config api/oapi-codegen.yaml api/openapi.yaml
+	@if ! git diff --quiet -- internal/transport/routes/api/gen; then \
+	  echo "api gen out of date — run 'make api-gen' and commit the result"; \
+	  git --no-pager diff --stat -- internal/transport/routes/api/gen; \
+	  exit 1; \
+	fi
+
 tidy: ## Tidy go.mod / go.sum
 	@$(GO) mod tidy
 
@@ -93,6 +107,6 @@ tools: ## Install dev tools (golangci-lint, govulncheck, goimports)
 	@$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	@echo "ensure $$($(GO) env GOPATH)/bin is on your PATH"
 
-ci: tidy-check fmt-check vet lint test vuln sqlc-check build ## Run the full CI bundle locally
+ci: tidy-check fmt-check vet lint test vuln sqlc-check api-check build ## Run the full CI bundle locally
 
-.PHONY: help build run test fmt fmt-check vet lint vuln tidy tidy-check sqlc sqlc-check docker clean tools ci vendor
+.PHONY: help build run test fmt fmt-check vet lint vuln tidy tidy-check sqlc sqlc-check api-lint api-gen api-check docker clean tools ci vendor

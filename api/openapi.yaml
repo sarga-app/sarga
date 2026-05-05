@@ -1,11 +1,11 @@
-openapi: 3.1.0
+openapi: 3.0.3
 info:
   title: Sarga API
   version: 0.1.0
-  summary: Native REST API for the Sarga music server.
   description: |
-    Hand-maintained spec. Source of truth for `/api/v1/*` routes.
-    OpenSubsonic compatibility (`/rest/*`) is documented separately.
+    Native REST API for the Sarga music server. Source of truth for
+    `/api/v1/*` routes. OpenSubsonic compatibility (`/rest/*`) is
+    documented separately.
 servers:
   - url: /api/v1
     description: This server
@@ -20,6 +20,7 @@ paths:
   /auth/login:
     post:
       tags: [auth]
+      operationId: loginUser
       summary: Exchange username + password for an access token.
       description: |
         On success, sets an HttpOnly `sarga_refresh` cookie scoped to
@@ -45,6 +46,7 @@ paths:
   /auth/refresh:
     post:
       tags: [auth]
+      operationId: refreshSession
       summary: Rotate the refresh cookie and mint a new access token.
       description: |
         Reads `sarga_refresh` from the request cookie, revokes it, and issues
@@ -61,6 +63,7 @@ paths:
   /auth/logout:
     post:
       tags: [auth]
+      operationId: logoutUser
       summary: Revoke the current refresh token and clear its cookie.
       responses:
         '204': { description: Logged out. }
@@ -68,6 +71,7 @@ paths:
   /me:
     get:
       tags: [identity]
+      operationId: getCurrentUser
       summary: Return the caller's user id and admin flag.
       security:
         - bearerAuth: []
