@@ -201,7 +201,7 @@ func (h *Handler) GrantLibraryAccess(w http.ResponseWriter, r *http.Request, lib
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) RevokeLibraryAccess(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID, userID uuid.UUID) {
+func (h *Handler) RevokeLibraryAccess(w http.ResponseWriter, r *http.Request, libraryID, userID uuid.UUID) {
 	if err := h.store.RevokeLibraryAccess(r.Context(), queries.RevokeLibraryAccessParams{
 		LibraryID: libraryID.String(),
 		UserID:    userID.String(),
