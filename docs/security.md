@@ -77,7 +77,7 @@ These are tracked in `PLAN.md`. We're calling them out here so you know what to 
 
 | Item | Why |
 |---|---|
-| **Config redaction in logs** (`Config.LogValue()`) | Stop `database.password` and `auth.jwt.secret` from being printable via `slog.Info("config", "c", cfg)`. Defence against accidental log dumps in support tickets. |
+| **Config redaction in logs** (`Config.LogValue()`) | Stop `auth.jwt.secret` from being printable via `slog.Info("config", "c", cfg)`. Defence against accidental log dumps in support tickets. |
 | **OIDC (OpenID Connect) login** | Self-host alongside Authentik / Keycloak / Pocket ID and let your existing identity provider handle MFA, device management, and federated login. Three lines of YAML to wire up. |
 | **OIDC identity claim binding** | The `oidc_identities` table already exists; we'll enforce that an issuer + subject pair maps to exactly one user, so you can't be silently re-linked to someone else's account. |
 
@@ -117,15 +117,10 @@ Sarga gives you secure defaults out of the box, but a few choices are yours to m
 
 If you do nothing else, do these:
 
-1. **Change the database password** before exposing Sarga to any network.
-   ```bash
-   # In .env (Docker) or your config:
-   SARGA_DATABASE_PASSWORD=<something long and random — pwgen 32 1>
-   ```
-2. **Don't publish Postgres to the internet.** The default `compose.yaml` binds it to `127.0.0.1:5432` — keep it that way.
-3. **Put Sarga behind HTTPS.** Either let Sarga handle it directly (autocert, Phase 5) or front it with Caddy (`caddy reverse-proxy` is one line), Traefik, or a tunnel like Tailscale/Cloudflare.
-4. **Back up `data/secrets/` separately from your database.** See [`backup-and-portability.md`](backup-and-portability.md). Losing this folder will eventually mean unrecoverable data once Phase 3 ships.
-5. **Make a regular user for daily use; reserve the admin account for admin tasks.** Same reasoning as `sudo`: an XSS in a hypothetical future plugin can't escalate to admin if you're not logged in as one.
+1. **Put Sarga behind HTTPS.** Either let Sarga handle it directly (autocert, Phase 5) or front it with Caddy (`caddy reverse-proxy` is one line), Traefik, or a tunnel like Tailscale/Cloudflare.
+2. **Back up the `data/` directory regularly.** It contains both the database (`sarga.db`) and `secrets/`. Losing `secrets/` will eventually mean unrecoverable data once Phase 3 ships. See [`backup-and-portability.md`](backup-and-portability.md).
+3. **Verify the data directory is 0700.** Sarga enforces this on startup, but confirm if you've moved it or restored from backup. The SQLite file inherits the directory's owner — no other process on the host should be able to read it.
+4. **Make a regular user for daily use; reserve the admin account for admin tasks.** Same reasoning as `sudo`: an XSS in a hypothetical future plugin can't escalate to admin if you're not logged in as one.
 
 ### The thirty-minute hardening checklist
 
@@ -134,7 +129,6 @@ For a more locked-down deployment:
 | Action | How | Why |
 |---|---|---|
 | **Use OIDC for login** (when Phase 1 lands) instead of local passwords | Point Sarga at Authentik / Keycloak / Pocket ID | Centralizes MFA, device management, audit logs |
-| **Enable Postgres TLS for remote DBs** | `SARGA_DATABASE_SSLMODE=require` (or `verify-full` with a CA cert) | Default `disable` is fine for `localhost` in Docker; required for any DB across a network |
 | **Run Sarga behind a reverse proxy with rate limits** | Caddy `rate_limit`, Traefik plugins, or Cloudflare | Defence in depth before our in-process limiter ships |
 | **Restrict who can reach `/api/v1/admin/*`** at the proxy | Allow-list your home IP, or require Tailscale/WireGuard | Belt and braces with `RequireAdmin` |
 | **Encrypt your offsite backups** | `age -r age1...` or restic with a passphrase | Backups are exfiltrated more often than running services |
@@ -150,19 +144,17 @@ For a more locked-down deployment:
 | Paste the contents of `secrets/` or your DB password into a forum / Discord / GitHub issue when asking for help | Same reason. Use the `<redacted>` log markers Sarga produces — those are the safe version |
 | Disable HTTPS "just for testing" on a server reachable from the internet | The phone you tested with becomes the device that scraped your library a week later |
 | Run Sarga as root | The Docker image already runs as uid 65532; if you build your own, keep it that way |
-| Reuse your DB password as your Sarga login password | Different attack surfaces, different rotation cadence |
 | Skip the `secrets/` backup because "it's just session keys" | Once Phase 3 lands, this folder gates access to all encrypted columns. Treat it like an SSH private key |
 
 ### When something goes wrong
 
 Suspected breach? Do this in order:
 
-1. **Stop Sarga.** `docker compose stop sarga` (leave Postgres running).
+1. **Stop Sarga.** `docker compose stop sarga` (or `systemctl stop sarga`).
 2. **Snapshot the database and `data/secrets/`** with the same backup commands as a normal backup, but to a separate directory you'll keep for forensics.
 3. **Rotate the JWT secret**: delete `data/secrets/jwt.key` and restart. This invalidates all active sessions; everyone gets logged out.
-4. **Force password resets** for all users (admin UI, when shipped, or `UPDATE users SET password_changed_at = now()` and have them re-auth).
-5. **Rotate the DB password** in your `.env` and in Postgres (`ALTER USER sarga WITH PASSWORD ...`).
-6. **Audit `listening_events`** for unfamiliar play history and `library_access` for unexpected grants.
+4. **Force password resets** for all users (admin UI, when shipped, or `UPDATE users SET password_changed_at = datetime('now')` and have them re-auth).
+5. **Audit `listening_events`** for unfamiliar play history and `library_access` for unexpected grants.
 7. **Update Sarga to the latest release** before bringing the service back up — if the breach was via a known CVE, the patched version closes it.
 
 If you find a vulnerability *in Sarga itself*, please report it privately rather than opening a public issue. (Reporting channel will be added to the README before v1.0.)

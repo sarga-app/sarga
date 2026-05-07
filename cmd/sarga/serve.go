@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -29,19 +30,28 @@ var serveCmd = &cobra.Command{
 		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 
+		dbPath := cfg.Database.Path
+		if dbPath == "" {
+			dbPath = filepath.Join(cfg.Data.Dir, "sarga.db")
+		}
+
 		if cfg.Database.AutoMigrate {
-			if mErr := db.MigrateUp(ctx, cfg.Database); mErr != nil {
+			if mErr := db.MigrateUp(ctx, dbPath); mErr != nil {
 				return mErr
 			}
 		}
 
-		pool, err := db.NewPool(ctx, cfg.Database)
+		dbInst, err := db.New(dbPath)
 		if err != nil {
 			return err
 		}
-		defer pool.Close()
+		defer func() {
+			if err := dbInst.Close(); err != nil {
+				slog.Error("db close", "err", err)
+			}
+		}()
 
-		return transport.Run(ctx, cfg, pool)
+		return transport.Run(ctx, cfg, dbInst)
 	},
 }
 

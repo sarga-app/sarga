@@ -29,7 +29,7 @@ func TestIssueAndParse_RoundTrip(t *testing.T) {
 	cfg := testCfg(t)
 	uid := uuid.MustParse("12345678-1234-1234-1234-123456789abc")
 
-	tok, err := IssueAccessToken(cfg, uid, true)
+	tok, err := IssueAccessToken(cfg, uid.String(), true)
 	if err != nil {
 		t.Fatalf("Issue: %v", err)
 	}
@@ -58,7 +58,7 @@ func TestIssueAndParse_RoundTrip(t *testing.T) {
 func TestParse_ExpiredRejected(t *testing.T) {
 	t.Parallel()
 	cfg := testCfg(t)
-	tok, _ := IssueAccessToken(cfg, uuid.New(), false)
+	tok, _ := IssueAccessToken(cfg, uuid.New().String(), false)
 
 	// Move clock past expiry.
 	expired := cfg
@@ -76,7 +76,7 @@ func TestParse_ExpiredRejected(t *testing.T) {
 func TestParse_WrongIssuerRejected(t *testing.T) {
 	t.Parallel()
 	cfg := testCfg(t)
-	tok, _ := IssueAccessToken(cfg, uuid.New(), false)
+	tok, _ := IssueAccessToken(cfg, uuid.New().String(), false)
 
 	other := cfg
 	other.Issuer = "evil"
@@ -88,7 +88,7 @@ func TestParse_WrongIssuerRejected(t *testing.T) {
 func TestParse_WrongAudienceRejected(t *testing.T) {
 	t.Parallel()
 	cfg := testCfg(t)
-	tok, _ := IssueAccessToken(cfg, uuid.New(), false)
+	tok, _ := IssueAccessToken(cfg, uuid.New().String(), false)
 
 	other := cfg
 	other.Audience = "wrong"
@@ -100,7 +100,7 @@ func TestParse_WrongAudienceRejected(t *testing.T) {
 func TestParse_WrongSecretRejected(t *testing.T) {
 	t.Parallel()
 	cfg := testCfg(t)
-	tok, _ := IssueAccessToken(cfg, uuid.New(), false)
+	tok, _ := IssueAccessToken(cfg, uuid.New().String(), false)
 
 	other := cfg
 	other.Secret = []byte("different-secret-32-bytes-long!!!!!!")
@@ -134,7 +134,7 @@ func TestParse_AlgNoneRejected(t *testing.T) {
 func TestParse_TamperedRejected(t *testing.T) {
 	t.Parallel()
 	cfg := testCfg(t)
-	tok, _ := IssueAccessToken(cfg, uuid.New(), false)
+	tok, _ := IssueAccessToken(cfg, uuid.New().String(), false)
 	pos := len(tok) - 5
 	tampered := tok[:pos] + flipChar(tok[pos]) + tok[pos+1:]
 	if _, err := ParseAccessToken(cfg, tampered); err == nil {
@@ -146,7 +146,7 @@ func TestIssue_EmptySecretRejected(t *testing.T) {
 	t.Parallel()
 	cfg := testCfg(t)
 	cfg.Secret = nil
-	if _, err := IssueAccessToken(cfg, uuid.New(), false); err == nil {
+	if _, err := IssueAccessToken(cfg, uuid.New().String(), false); err == nil {
 		t.Error("Issue with empty secret should error")
 	}
 }
@@ -160,7 +160,7 @@ func TestIssueAndParse_DefaultIssuerAudience(t *testing.T) {
 	cfg := JWTConfig{Secret: []byte("test-secret-at-least-32-bytes-long!!")}
 	uid := uuid.New()
 
-	tok, err := IssueAccessToken(cfg, uid, true)
+	tok, err := IssueAccessToken(cfg, uid.String(), true)
 	if err != nil {
 		t.Fatalf("Issue: %v", err)
 	}

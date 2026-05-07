@@ -6,17 +6,14 @@ import (
 	"fmt"
 	"log/slog"
 
-	_ "github.com/jackc/pgx/v5/stdlib" // registers "pgx" driver for database/sql (used by goose)
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/database"
-	"github.com/pressly/goose/v3/lock"
 
-	"github.com/sarga-app/sarga/internal/support/config"
 	"github.com/sarga-app/sarga/migrations"
 )
 
-func openMigrationDB(cfg config.DatabaseConfig) (*sql.DB, error) {
-	db, err := sql.Open("pgx", buildDSN(cfg))
+func openMigrationDB(path string) (*sql.DB, error) {
+	db, err := sql.Open("sqlite", buildDSN(path))
 	if err != nil {
 		return nil, fmt.Errorf("open migration db: %w", err)
 	}
@@ -25,25 +22,19 @@ func openMigrationDB(cfg config.DatabaseConfig) (*sql.DB, error) {
 }
 
 func newProvider(db *sql.DB) (*goose.Provider, error) {
-	locker, err := lock.NewPostgresSessionLocker()
+	p, err := goose.NewProvider(database.DialectSQLite3, db, migrations.FS)
 	if err != nil {
-		return nil, fmt.Errorf("init session locker: %w", err)
+		return nil, fmt.Errorf("init goose provider: %w", err)
 	}
-	return goose.NewProvider(database.DialectPostgres, db, migrations.FS,
-		goose.WithSessionLocker(locker),
-	)
+	return p, nil
 }
 
-func MigrateUp(ctx context.Context, cfg config.DatabaseConfig) error {
-	db, err := openMigrationDB(cfg)
+func MigrateUp(ctx context.Context, path string) error {
+	db, err := openMigrationDB(path)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if cerr := db.Close(); cerr != nil {
-			slog.Warn("close migration db", "err", cerr)
-		}
-	}()
+	defer closeDB(db)
 
 	p, err := newProvider(db)
 	if err != nil {
@@ -62,19 +53,18 @@ func MigrateUp(ctx context.Context, cfg config.DatabaseConfig) error {
 			"to", results[len(results)-1].Source.Version,
 		)
 	}
+	if _, err := db.ExecContext(ctx, "ANALYZE"); err != nil {
+		slog.Warn("migrations: ANALYZE failed", "err", err)
+	}
 	return nil
 }
 
-func MigrateDown(ctx context.Context, cfg config.DatabaseConfig) error {
-	db, err := openMigrationDB(cfg)
+func MigrateDown(ctx context.Context, path string) error {
+	db, err := openMigrationDB(path)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if cerr := db.Close(); cerr != nil {
-			slog.Warn("close migration db", "err", cerr)
-		}
-	}()
+	defer closeDB(db)
 
 	p, err := newProvider(db)
 	if err != nil {
@@ -92,16 +82,12 @@ type MigrationStatus struct {
 	Applied bool
 }
 
-func MigrateStatus(ctx context.Context, cfg config.DatabaseConfig) ([]MigrationStatus, error) {
-	db, err := openMigrationDB(cfg)
+func MigrateStatus(ctx context.Context, path string) ([]MigrationStatus, error) {
+	db, err := openMigrationDB(path)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if cerr := db.Close(); cerr != nil {
-			slog.Warn("close migration db", "err", cerr)
-		}
-	}()
+	defer closeDB(db)
 
 	p, err := newProvider(db)
 	if err != nil {
@@ -120,4 +106,10 @@ func MigrateStatus(ctx context.Context, cfg config.DatabaseConfig) ([]MigrationS
 		})
 	}
 	return out, nil
+}
+
+func closeDB(db *sql.DB) {
+	if err := db.Close(); err != nil {
+		slog.Warn("close migration db", "err", err)
+	}
 }

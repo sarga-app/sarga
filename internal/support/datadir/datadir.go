@@ -11,8 +11,6 @@ import (
 	"path/filepath"
 )
 
-const DefaultRoot = "./data"
-
 const (
 	SecretsSubdir = "secrets"
 	CertsSubdir   = "certs"

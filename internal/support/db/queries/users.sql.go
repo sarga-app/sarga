@@ -7,35 +7,34 @@ package queries
 
 import (
 	"context"
-
-	"github.com/google/uuid"
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (
-    username, email, password_hash, display_name, is_admin, password_changed_at
-) VALUES (
-    $1, $2, $3, $4, $5, CASE WHEN $3::text IS NOT NULL THEN now() ELSE NULL END
-)
+INSERT INTO users (id, username, email, password_hash, display_name, is_admin, password_changed_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 RETURNING id, username, email, password_hash, display_name,
           is_admin, disabled_at, password_changed_at, created_at, updated_at
 `
 
 type CreateUserParams struct {
-	Username     string
-	Email        *string
-	PasswordHash *string
-	DisplayName  *string
-	IsAdmin      bool
+	ID                string
+	Username          string
+	Email             *string
+	PasswordHash      *string
+	DisplayName       *string
+	IsAdmin           bool
+	PasswordChangedAt *string
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, createUser,
+	row := q.db.QueryRowContext(ctx, createUser,
+		arg.ID,
 		arg.Username,
 		arg.Email,
 		arg.PasswordHash,
 		arg.DisplayName,
 		arg.IsAdmin,
+		arg.PasswordChangedAt,
 	)
 	var i User
 	err := row.Scan(
@@ -54,16 +53,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT
-    id, username, email, password_hash, display_name,
-    is_admin, disabled_at, password_changed_at, created_at, updated_at
-FROM users
-WHERE email = $1::text
+SELECT id, username, email, password_hash, display_name,
+       is_admin, disabled_at, password_changed_at, created_at, updated_at
+FROM users WHERE email = ?1
 `
 
-// Caller must lowercase the email before calling.
-func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByEmail, email)
+func (q *Queries) GetUserByEmail(ctx context.Context, email *string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -81,16 +77,13 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT
-    id, username, email, password_hash, display_name,
-    is_admin, disabled_at, password_changed_at, created_at, updated_at
-FROM users
-WHERE id = $1
+SELECT id, username, email, password_hash, display_name,
+       is_admin, disabled_at, password_changed_at, created_at, updated_at
+FROM users WHERE id = ?
 `
 
-// Lookup by primary key. Returns disabled users too — caller decides.
-func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByID, id)
+func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByID, id)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -108,16 +101,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT
-    id, username, email, password_hash, display_name,
-    is_admin, disabled_at, password_changed_at, created_at, updated_at
-FROM users
-WHERE username = $1
+SELECT id, username, email, password_hash, display_name,
+       is_admin, disabled_at, password_changed_at, created_at, updated_at
+FROM users WHERE username = ?
 `
 
-// Caller must lowercase the username before calling.
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByUsername, username)
+	row := q.db.QueryRowContext(ctx, getUserByUsername, username)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -136,17 +126,17 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 
 const updateUserPassword = `-- name: UpdateUserPassword :exec
 UPDATE users
-SET password_hash       = $2,
-    password_changed_at = now()
-WHERE id = $1
+SET password_hash       = ?,
+    password_changed_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+WHERE id = ?
 `
 
 type UpdateUserPasswordParams struct {
-	ID           uuid.UUID
 	PasswordHash *string
+	ID           string
 }
 
 func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
-	_, err := q.db.Exec(ctx, updateUserPassword, arg.ID, arg.PasswordHash)
+	_, err := q.db.ExecContext(ctx, updateUserPassword, arg.PasswordHash, arg.ID)
 	return err
 }

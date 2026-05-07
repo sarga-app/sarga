@@ -4,14 +4,16 @@ This guide gets you a working backup in about 5 minutes, and shows you how to re
 
 ## TL;DR
 
-You need to back up **two things**:
+You need to back up **one thing**: Sarga's data directory.
 
-1. **Your Postgres database** — your users, libraries, listening history, playlists.
-2. **Sarga's `secrets/` folder** — the keys that make your saved data readable.
+It contains everything you can't reconstruct:
+
+- `sarga.db` — your users, libraries, listening history, playlists.
+- `secrets/` — the keys that protect your data.
 
 That's it. Music files aren't included (Sarga never modifies them — your existing music backup is fine).
 
-> **Most important rule:** back up #1 and #2 *together*, on the same schedule. Restoring one without the other will break your install.
+> **Most important rule:** always keep `sarga.db` and `secrets/` together in the same backup. Restoring one without the other will break your install.
 
 Pick your install type below and follow the steps.
 
@@ -19,10 +21,9 @@ Pick your install type below and follow the steps.
 
 ## I run Sarga in Docker
 
-Your data lives in two Docker volumes that were created when you ran `docker compose up`:
+Your data lives in one Docker volume that was created when you ran `docker compose up`:
 
-- `sarga-pgdata` — the database
-- `sarga-data` — Sarga's working files (secrets, certs, cache)
+- `sarga-data` — the database, secrets, certs, and cache.
 
 ### One-time: a backup script you can run any day
 
@@ -36,14 +37,17 @@ OUT="${1:-$HOME/sarga-backups}"
 DATE=$(date +%F)
 mkdir -p "$OUT"
 
-echo "→ Dumping database..."
-docker exec sarga-postgres pg_dump -U sarga -Fc sarga > "$OUT/db-$DATE.dump"
+echo "→ Stopping sarga (briefly)..."
+docker compose stop sarga
 
-echo "→ Archiving secrets..."
+echo "→ Archiving data volume..."
 docker run --rm \
   -v sarga-data:/src:ro \
   -v "$OUT":/out \
-  alpine tar czf "/out/secrets-$DATE.tar.gz" -C /src secrets
+  alpine tar czf "/out/sarga-data-$DATE.tar.gz" -C /src .
+
+echo "→ Starting sarga..."
+docker compose start sarga
 
 echo "→ Copying .env..."
 cp .env "$OUT/env-$DATE.backup" 2>/dev/null || echo "  (no .env in current dir, skipping)"
@@ -59,15 +63,16 @@ chmod +x backup-sarga.sh
 ./backup-sarga.sh
 ```
 
-You'll get three files dated today:
+You'll get two files dated today:
 
 ```
-db-2026-05-06.dump        # the database
-secrets-2026-05-06.tar.gz # the keys
-env-2026-05-06.backup     # your config
+sarga-data-2026-05-06.tar.gz  # database + secrets + certs
+env-2026-05-06.backup         # your config
 ```
 
-Copy these three files **together** to wherever you keep backups (external drive, S3, Backblaze, another machine — see the Offsite section below).
+Copy these two files **together** to wherever you keep backups (external drive, S3, Backblaze, another machine — see the Offsite section below).
+
+> **Downtime:** stopping sarga takes a second or two; the volume archive usually completes in under a minute. If you can't afford even that, see the [Online backup](#online-backup-no-downtime) section below.
 
 ### Restoring on a new machine
 
@@ -76,60 +81,66 @@ You're setting up a fresh machine and want your old Sarga back.
 ```bash
 # 1. Install Docker + Sarga the normal way (clone repo or copy compose.yaml).
 
-# 2. Restore your .env file FIRST. The DB password in it must match
-#    what you backed up.
+# 2. Restore your .env file FIRST.
 cp env-2026-05-06.backup .env
 
-# 3. Bring up just Postgres.
-docker compose up -d postgres
-
-# 4. Wait ~5 seconds for it to be ready, then restore the database.
-docker exec -i sarga-postgres \
-  pg_restore -U sarga -d sarga --clean --if-exists < db-2026-05-06.dump
-
-# 5. Restore secrets into the data volume.
+# 3. Restore the data volume.
 docker run --rm \
   -v sarga-data:/dst \
   -v "$PWD":/in \
-  alpine tar xzf "/in/secrets-2026-05-06.tar.gz" -C /dst
+  alpine tar xzf "/in/sarga-data-2026-05-06.tar.gz" -C /dst
 
-# 6. Start Sarga.
+# 4. Start Sarga.
 docker compose up -d sarga
 ```
 
 Open the URL in a browser — you should be back exactly where you left off.
 
+### Online backup (no downtime)
+
+If you can't pause sarga, use SQLite's built-in online backup:
+
+```bash
+docker exec sarga sqlite3 /data/sarga.db ".backup /data/tmp/sarga-online-backup.db"
+docker run --rm \
+  -v sarga-data:/src:ro \
+  -v "$OUT":/out \
+  alpine tar czf "/out/sarga-data-$DATE.tar.gz" \
+    -C /src tmp/sarga-online-backup.db secrets
+docker exec sarga rm /data/tmp/sarga-online-backup.db
+```
+
+`.backup` is WAL-aware and produces a consistent snapshot without stopping the server.
+
+> Requires `sqlite3` in the Sarga container image. This will be wrapped as `sarga backup` in a future release.
+
 ---
 
 ## I run the Sarga binary directly
 
-Your data lives in:
-
-- A Postgres database somewhere (local, remote, doesn't matter — you set this in your config)
-- A `data/` folder created **next to wherever you launched Sarga from**. It's always `./data` relative to the working directory when you ran `./sarga serve`. There is no config option to move it — if you want it elsewhere, run Sarga from that directory (or symlink).
+Your data lives in one folder controlled by `SARGA_DATA_DIR` (or `data.dir` in `config.yaml`). Defaults to `./data` next to the binary. systemd users typically set this to `/var/lib/sarga`.
 
 ### One-time: a backup script you can run any day
 
-Save this as `backup-sarga.sh` **next to your Sarga binary** (so `./data` resolves correctly):
+Save this as `backup-sarga.sh`. Set `SARGA_DATA_DIR` to match your install if you've moved it:
 
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Run this from the same directory you launch Sarga from.
-# That's where the ./data folder lives.
-
+DATA_DIR="${SARGA_DATA_DIR:-./data}"
 OUT="${1:-$HOME/sarga-backups}"
 DATE=$(date +%F)
 mkdir -p "$OUT"
 
-echo "→ Dumping database..."
-pg_dump -h "${SARGA_DATABASE_HOST:-localhost}" \
-        -U "${SARGA_DATABASE_USER:-sarga}" \
-        -Fc "${SARGA_DATABASE_NAME:-sarga}" > "$OUT/db-$DATE.dump"
+echo "→ Stopping sarga..."
+systemctl stop sarga 2>/dev/null || true   # adjust to your init system
 
-echo "→ Archiving secrets..."
-tar czf "$OUT/secrets-$DATE.tar.gz" -C ./data secrets
+echo "→ Archiving data dir..."
+tar czf "$OUT/sarga-data-$DATE.tar.gz" -C "$(dirname "$DATA_DIR")" "$(basename "$DATA_DIR")"
+
+echo "→ Starting sarga..."
+systemctl start sarga 2>/dev/null || true
 
 echo "→ Copying config..."
 cp config.yaml "$OUT/config-$DATE.yaml" 2>/dev/null || echo "  (no config.yaml found, skipping)"
@@ -145,27 +156,20 @@ chmod +x backup-sarga.sh
 ./backup-sarga.sh
 ```
 
-You'll get three files dated today. Copy them somewhere safe.
+You'll get two files dated today. Copy them somewhere safe.
 
 ### Restoring on a new machine
 
 ```bash
-# 1. Install Postgres and create the sarga role + database.
-sudo -u postgres createuser sarga
-sudo -u postgres createdb -O sarga sarga
-sudo -u postgres psql -c "ALTER USER sarga WITH PASSWORD '<your-old-password>';"
+# 1. Install the Sarga binary.
 
-# 2. Restore the database.
-pg_restore -h localhost -U sarga -d sarga --clean --if-exists db-2026-05-06.dump
+# 2. Restore the data dir.
+tar xzf sarga-data-2026-05-06.tar.gz -C ./   # extracts ./data/
 
-# 3. Restore secrets.
-mkdir -p ./data
-tar xzf secrets-2026-05-06.tar.gz -C ./data
-
-# 4. Restore config.
+# 3. Restore config.
 cp config-2026-05-06.yaml ./config.yaml
 
-# 5. Start Sarga.
+# 4. Start Sarga.
 ./sarga serve --config ./config.yaml
 ```
 
@@ -175,9 +179,9 @@ cp config-2026-05-06.yaml ./config.yaml
 
 Same recipe as restoring, but done while the old server is still up:
 
-1. **On the old server:** stop only Sarga (leave Postgres running): `docker compose stop sarga` (or `systemctl stop sarga`). This pauses writes so your snapshot is consistent.
+1. **On the old server:** stop Sarga: `docker compose stop sarga` (or `systemctl stop sarga`). This pauses writes so your snapshot is consistent.
 2. **On the old server:** run your backup script.
-3. **Copy the three files** to the new server (`scp`, `rsync`, USB drive, whatever).
+3. **Copy the files** to the new server (`scp`, `rsync`, USB drive, whatever).
 4. **On the new server:** follow the restore steps above.
 5. **Update your DNS or reverse proxy** to point at the new server.
 6. **On the old server:** once you've verified the new one works, shut it down.
@@ -204,7 +208,7 @@ A backup that lives next to the server isn't really a backup. Pick one:
 - **Easiest:** copy the daily files to a cloud bucket (`rclone copy ~/sarga-backups remote:sarga`). Works with Backblaze B2, S3, Google Drive, OneDrive, etc.
 - **More secure:** encrypt before uploading using [age](https://age-encryption.org):
   ```bash
-  age -r age1... < db-2026-05-06.dump > db-2026-05-06.dump.age
+  age -r age1... < sarga-data-2026-05-06.tar.gz > sarga-data-2026-05-06.tar.gz.age
   ```
 - **Most thorough:** use [restic](https://restic.net) or [borg](https://www.borgbackup.org) — they handle encryption, deduplication, and remote repos in one tool.
 
@@ -238,15 +242,15 @@ Treat `secrets/` like an SSH private key:
 |---|---|---|
 | Your music files | Sarga never modifies them | Use your existing media/NAS backup |
 | Reverse proxy config (Caddy / Traefik / nginx) | Lives outside Sarga | Back up alongside, separately |
-| Operator notes (passwords, OIDC client secrets) | Not in any one place | Keep a password manager entry titled "Sarga: <hostname>" |
+| Operator notes (OIDC client secrets, etc.) | Not in any one place | Keep a password manager entry titled "Sarga: <hostname>" |
 
 ---
 
 ## Got stuck?
 
-If a restore doesn't work, the most common issue is a **database password mismatch** between the backup and the new install. Open `.env` (Docker) or `config.yaml` (binary) on the new machine and make sure `SARGA_DATABASE_PASSWORD` is exactly what it was on the old machine.
+If a restore doesn't work, the most common issue is a **mismatched `secrets/` folder**. Make sure you restored the `secrets/` directory from the same backup archive as `sarga.db` — they must be from the same point in time.
 
 If you need help, open a discussion at [github.com/sarga-app/sarga/discussions](https://github.com/sarga-app/sarga/discussions) and include:
 - Whether you're on Docker or binary
 - Which step failed
-- The error message (with passwords/keys redacted, please)
+- The error message (with any keys or tokens redacted, please)
