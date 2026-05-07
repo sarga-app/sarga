@@ -1,9 +1,11 @@
 package libraries
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"path/filepath"
@@ -13,36 +15,48 @@ import (
 	"github.com/google/uuid"
 
 	domauth "github.com/sarga-app/sarga/internal/domain/auth"
+	"github.com/sarga-app/sarga/internal/support/db"
 	"github.com/sarga-app/sarga/internal/support/db/queries"
 	"github.com/sarga-app/sarga/internal/transport/httpx"
 	"github.com/sarga-app/sarga/internal/transport/routes/api/gen"
 )
 
 type Handler struct {
-	store Store
+	db *db.DB
 }
 
-func NewHandler(store Store) *Handler {
-	return &Handler{store: store}
+func NewHandler(d *db.DB) *Handler {
+	return &Handler{db: d}
 }
 
 func (h *Handler) ListLibraries(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	q := queries.New(h.db.Read())
+
 	var libs []queries.Library
 	var err error
-	if domauth.IsAdminFrom(r.Context()) {
-		libs, err = h.store.ListLibraries(r.Context())
+	if domauth.IsAdminFrom(ctx) {
+		libs, err = q.ListLibraries(ctx)
 	} else {
-		uid, _ := domauth.UserIDFrom(r.Context())
-		libs, err = h.store.ListLibrariesForUser(r.Context(), uid.String())
+		uid, _ := domauth.UserIDFrom(ctx)
+		libs, err = q.ListLibrariesForUser(ctx, uid.String())
 	}
 	if err != nil {
 		slog.Error("list libraries", "err", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "internal error")
 		return
 	}
+
+	pathsByLib, err := pathsForLibraries(ctx, q)
+	if err != nil {
+		slog.Error("list libraries: load paths", "err", err)
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "internal error")
+		return
+	}
+
 	out := make([]gen.Library, 0, len(libs))
 	for _, l := range libs {
-		out = append(out, toGenLibrary(l))
+		out = append(out, toGenLibrary(l, pathsByLib[l.ID]))
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"libraries": out})
 }
@@ -53,29 +67,52 @@ func (h *Handler) CreateLibrary(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid_request", "malformed request body")
 		return
 	}
-	if err := validateLibraryWrite(req); err != nil {
+	cleanPaths, err := validateLibraryWrite(req)
+	if err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
-	lib, err := h.store.CreateLibrary(r.Context(), queries.CreateLibraryParams{
-		ID:   uuid.NewString(),
-		Name: strings.TrimSpace(req.Name),
-		Path: filepath.Clean(req.Path),
+
+	ctx := r.Context()
+	libID := uuid.NewString()
+
+	lib, err := h.tx(ctx, func(q *queries.Queries) (queries.Library, error) {
+		l, err := q.CreateLibrary(ctx, queries.CreateLibraryParams{
+			ID:   libID,
+			Name: strings.TrimSpace(req.Name),
+		})
+		if err != nil {
+			return queries.Library{}, err
+		}
+		for _, p := range cleanPaths {
+			if _, err := q.AddLibraryPath(ctx, queries.AddLibraryPathParams{
+				ID:        uuid.NewString(),
+				LibraryID: libID,
+				Path:      p,
+			}); err != nil {
+				return queries.Library{}, err
+			}
+		}
+		return l, nil
 	})
 	if err != nil {
 		if isUniqueViolation(err) {
-			httpx.WriteError(w, http.StatusConflict, "conflict", "library name already exists")
+			httpx.WriteError(w, http.StatusConflict, "conflict", "library name or path already exists")
 			return
 		}
 		slog.Error("create library", "err", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "internal error")
 		return
 	}
-	httpx.WriteJSON(w, http.StatusCreated, toGenLibrary(lib))
+
+	httpx.WriteJSON(w, http.StatusCreated, toGenLibrary(lib, cleanPaths))
 }
 
 func (h *Handler) GetLibrary(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID) {
-	lib, err := h.store.GetLibraryByID(r.Context(), libraryID.String())
+	ctx := r.Context()
+	q := queries.New(h.db.Read())
+
+	lib, err := q.GetLibraryByID(ctx, libraryID.String())
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			httpx.WriteError(w, http.StatusNotFound, "not_found", "library not found")
@@ -85,14 +122,24 @@ func (h *Handler) GetLibrary(w http.ResponseWriter, r *http.Request, libraryID u
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "internal error")
 		return
 	}
-	if !domauth.IsAdminFrom(r.Context()) {
-		uid, _ := domauth.UserIDFrom(r.Context())
-		if !h.userHasAccess(r, lib.ID, uid.String()) {
+	if !domauth.IsAdminFrom(ctx) {
+		uid, _ := domauth.UserIDFrom(ctx)
+		if _, err := q.GetLibraryAccess(ctx, queries.GetLibraryAccessParams{
+			LibraryID: lib.ID,
+			UserID:    uid.String(),
+		}); err != nil {
 			httpx.WriteError(w, http.StatusForbidden, "forbidden", "no access to this library")
 			return
 		}
 	}
-	httpx.WriteJSON(w, http.StatusOK, toGenLibrary(lib))
+
+	paths, err := loadPaths(ctx, q, lib.ID)
+	if err != nil {
+		slog.Error("get library: load paths", "err", err)
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "internal error")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, toGenLibrary(lib, paths))
 }
 
 func (h *Handler) UpdateLibrary(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID) {
@@ -101,14 +148,34 @@ func (h *Handler) UpdateLibrary(w http.ResponseWriter, r *http.Request, libraryI
 		httpx.WriteError(w, http.StatusBadRequest, "invalid_request", "malformed request body")
 		return
 	}
-	if err := validateLibraryWrite(req); err != nil {
+	cleanPaths, err := validateLibraryWrite(req)
+	if err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
-	lib, err := h.store.UpdateLibrary(r.Context(), queries.UpdateLibraryParams{
-		Name: strings.TrimSpace(req.Name),
-		Path: filepath.Clean(req.Path),
-		ID:   libraryID.String(),
+
+	ctx := r.Context()
+	lib, err := h.tx(ctx, func(q *queries.Queries) (queries.Library, error) {
+		l, err := q.UpdateLibrary(ctx, queries.UpdateLibraryParams{
+			ID:   libraryID.String(),
+			Name: strings.TrimSpace(req.Name),
+		})
+		if err != nil {
+			return queries.Library{}, err
+		}
+		if err := q.ClearLibraryPaths(ctx, l.ID); err != nil {
+			return queries.Library{}, err
+		}
+		for _, p := range cleanPaths {
+			if _, err := q.AddLibraryPath(ctx, queries.AddLibraryPathParams{
+				ID:        uuid.NewString(),
+				LibraryID: l.ID,
+				Path:      p,
+			}); err != nil {
+				return queries.Library{}, err
+			}
+		}
+		return l, nil
 	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -116,18 +183,20 @@ func (h *Handler) UpdateLibrary(w http.ResponseWriter, r *http.Request, libraryI
 			return
 		}
 		if isUniqueViolation(err) {
-			httpx.WriteError(w, http.StatusConflict, "conflict", "library name already exists")
+			httpx.WriteError(w, http.StatusConflict, "conflict", "library name or path already exists")
 			return
 		}
 		slog.Error("update library", "library_id", libraryID, "err", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "internal error")
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, toGenLibrary(lib))
+
+	httpx.WriteJSON(w, http.StatusOK, toGenLibrary(lib, cleanPaths))
 }
 
 func (h *Handler) DeleteLibrary(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID) {
-	if err := h.store.DeleteLibrary(r.Context(), libraryID.String()); err != nil {
+	q := queries.New(h.db.Write())
+	if err := q.DeleteLibrary(r.Context(), libraryID.String()); err != nil {
 		slog.Error("delete library", "library_id", libraryID, "err", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "internal error")
 		return
@@ -136,7 +205,9 @@ func (h *Handler) DeleteLibrary(w http.ResponseWriter, r *http.Request, libraryI
 }
 
 func (h *Handler) ListLibraryMembers(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID) {
-	if _, err := h.store.GetLibraryByID(r.Context(), libraryID.String()); err != nil {
+	ctx := r.Context()
+	q := queries.New(h.db.Read())
+	if _, err := q.GetLibraryByID(ctx, libraryID.String()); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			httpx.WriteError(w, http.StatusNotFound, "not_found", "library not found")
 			return
@@ -145,7 +216,7 @@ func (h *Handler) ListLibraryMembers(w http.ResponseWriter, r *http.Request, lib
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "internal error")
 		return
 	}
-	rows, err := h.store.ListLibraryMembers(r.Context(), libraryID.String())
+	rows, err := q.ListLibraryMembers(ctx, libraryID.String())
 	if err != nil {
 		slog.Error("list library members", "library_id", libraryID, "err", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "internal error")
@@ -166,7 +237,9 @@ func (h *Handler) ListLibraryMembers(w http.ResponseWriter, r *http.Request, lib
 }
 
 func (h *Handler) GrantLibraryAccess(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID) {
-	if _, err := h.store.GetLibraryByID(r.Context(), libraryID.String()); err != nil {
+	ctx := r.Context()
+	q := queries.New(h.db.Write())
+	if _, err := q.GetLibraryByID(ctx, libraryID.String()); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			httpx.WriteError(w, http.StatusNotFound, "not_found", "library not found")
 			return
@@ -189,7 +262,7 @@ func (h *Handler) GrantLibraryAccess(w http.ResponseWriter, r *http.Request, lib
 		httpx.WriteError(w, http.StatusBadRequest, "invalid_request", "role must be viewer, contributor, or admin")
 		return
 	}
-	if err := h.store.GrantLibraryAccess(r.Context(), queries.GrantLibraryAccessParams{
+	if err := q.GrantLibraryAccess(ctx, queries.GrantLibraryAccessParams{
 		LibraryID: libraryID.String(),
 		UserID:    req.UserId.String(),
 		Role:      role,
@@ -201,8 +274,9 @@ func (h *Handler) GrantLibraryAccess(w http.ResponseWriter, r *http.Request, lib
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) RevokeLibraryAccess(w http.ResponseWriter, r *http.Request, libraryID, userID uuid.UUID) {
-	if err := h.store.RevokeLibraryAccess(r.Context(), queries.RevokeLibraryAccessParams{
+func (h *Handler) RevokeLibraryAccess(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID, userID uuid.UUID) {
+	q := queries.New(h.db.Write())
+	if err := q.RevokeLibraryAccess(r.Context(), queries.RevokeLibraryAccessParams{
 		LibraryID: libraryID.String(),
 		UserID:    userID.String(),
 	}); err != nil {
@@ -213,42 +287,89 @@ func (h *Handler) RevokeLibraryAccess(w http.ResponseWriter, r *http.Request, li
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) userHasAccess(r *http.Request, libraryID, userID string) bool {
-	_, err := h.store.GetLibraryAccess(r.Context(), queries.GetLibraryAccessParams{
-		LibraryID: libraryID,
-		UserID:    userID,
-	})
-	return err == nil
+// tx runs fn inside a write transaction. fn returning an error rolls back.
+func (h *Handler) tx(ctx context.Context, fn func(*queries.Queries) (queries.Library, error)) (queries.Library, error) {
+	tx, err := h.db.Write().BeginTx(ctx, nil)
+	if err != nil {
+		return queries.Library{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck // rollback after commit is a no-op
+
+	lib, err := fn(queries.New(tx))
+	if err != nil {
+		return queries.Library{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return queries.Library{}, fmt.Errorf("commit: %w", err)
+	}
+	return lib, nil
 }
 
-func validateLibraryWrite(req gen.LibraryWrite) error {
+func loadPaths(ctx context.Context, q *queries.Queries, libraryID string) ([]string, error) {
+	rows, err := q.ListLibraryPaths(ctx, libraryID)
+	if err != nil {
+		return nil, err
+	}
+	paths := make([]string, 0, len(rows))
+	for _, r := range rows {
+		paths = append(paths, r.Path)
+	}
+	return paths, nil
+}
+
+func pathsForLibraries(ctx context.Context, q *queries.Queries) (map[string][]string, error) {
+	all, err := q.ListAllLibraryPaths(ctx)
+	if err != nil {
+		return nil, err
+	}
+	byLib := make(map[string][]string, len(all))
+	for _, p := range all {
+		byLib[p.LibraryID] = append(byLib[p.LibraryID], p.Path)
+	}
+	return byLib, nil
+}
+
+func validateLibraryWrite(req gen.LibraryWrite) ([]string, error) {
 	if strings.TrimSpace(req.Name) == "" {
-		return errors.New("name must not be empty")
+		return nil, errors.New("name must not be empty")
 	}
-	if strings.TrimSpace(req.Path) == "" {
-		return errors.New("path must not be empty")
+	if len(req.Paths) == 0 {
+		return nil, errors.New("at least one path is required")
 	}
-	return nil
+	seen := make(map[string]struct{}, len(req.Paths))
+	out := make([]string, 0, len(req.Paths))
+	for _, p := range req.Paths {
+		clean := filepath.Clean(strings.TrimSpace(p))
+		if clean == "" || clean == "." {
+			return nil, errors.New("paths must not be empty")
+		}
+		if _, dup := seen[clean]; dup {
+			return nil, fmt.Errorf("duplicate path %q", clean)
+		}
+		seen[clean] = struct{}{}
+		out = append(out, clean)
+	}
+	return out, nil
 }
 
 func isUniqueViolation(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed")
 }
 
-func toGenLibrary(l queries.Library) gen.Library {
+func toGenLibrary(l queries.Library, paths []string) gen.Library {
+	if paths == nil {
+		paths = []string{}
+	}
 	return gen.Library{
 		Id:        uuid.MustParse(l.ID),
 		Name:      l.Name,
-		Path:      l.Path,
+		Paths:     paths,
 		CreatedAt: parseTime(l.CreatedAt),
 		UpdatedAt: parseTime(l.UpdatedAt),
 	}
 }
 
 func parseTime(s string) time.Time {
-	t, err := time.Parse(time.RFC3339, s)
-	if err != nil {
-		return time.Time{}
-	}
+	t, _ := time.Parse(time.RFC3339, s)
 	return t
 }

@@ -30,7 +30,6 @@ type CoverArt struct {
 type Library struct {
 	ID        string
 	Name      string
-	Path      string
 	CreatedAt string
 	UpdatedAt string
 }
@@ -40,6 +39,13 @@ type LibraryAccess struct {
 	UserID    string
 	Role      string
 	GrantedAt string
+}
+
+type LibraryPath struct {
+	ID        string
+	LibraryID string
+	Path      string
+	CreatedAt string
 }
 
 type ListeningEvent struct {

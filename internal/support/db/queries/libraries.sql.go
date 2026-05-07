@@ -9,25 +9,56 @@ import (
 	"context"
 )
 
-const createLibrary = `-- name: CreateLibrary :one
-INSERT INTO libraries (id, name, path)
+const addLibraryPath = `-- name: AddLibraryPath :one
+INSERT INTO library_paths (id, library_id, path)
 VALUES (?, ?, ?)
-RETURNING id, name, path, created_at, updated_at
+RETURNING id, library_id, path, created_at
+`
+
+type AddLibraryPathParams struct {
+	ID        string
+	LibraryID string
+	Path      string
+}
+
+func (q *Queries) AddLibraryPath(ctx context.Context, arg AddLibraryPathParams) (LibraryPath, error) {
+	row := q.db.QueryRowContext(ctx, addLibraryPath, arg.ID, arg.LibraryID, arg.Path)
+	var i LibraryPath
+	err := row.Scan(
+		&i.ID,
+		&i.LibraryID,
+		&i.Path,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const clearLibraryPaths = `-- name: ClearLibraryPaths :exec
+DELETE FROM library_paths WHERE library_id = ?
+`
+
+func (q *Queries) ClearLibraryPaths(ctx context.Context, libraryID string) error {
+	_, err := q.db.ExecContext(ctx, clearLibraryPaths, libraryID)
+	return err
+}
+
+const createLibrary = `-- name: CreateLibrary :one
+INSERT INTO libraries (id, name)
+VALUES (?, ?)
+RETURNING id, name, created_at, updated_at
 `
 
 type CreateLibraryParams struct {
 	ID   string
 	Name string
-	Path string
 }
 
 func (q *Queries) CreateLibrary(ctx context.Context, arg CreateLibraryParams) (Library, error) {
-	row := q.db.QueryRowContext(ctx, createLibrary, arg.ID, arg.Name, arg.Path)
+	row := q.db.QueryRowContext(ctx, createLibrary, arg.ID, arg.Name)
 	var i Library
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.Path,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -67,7 +98,7 @@ func (q *Queries) GetLibraryAccess(ctx context.Context, arg GetLibraryAccessPara
 }
 
 const getLibraryByID = `-- name: GetLibraryByID :one
-SELECT id, name, path, created_at, updated_at
+SELECT id, name, created_at, updated_at
 FROM libraries
 WHERE id = ?
 `
@@ -78,7 +109,6 @@ func (q *Queries) GetLibraryByID(ctx context.Context, id string) (Library, error
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.Path,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -102,8 +132,42 @@ func (q *Queries) GrantLibraryAccess(ctx context.Context, arg GrantLibraryAccess
 	return err
 }
 
+const listAllLibraryPaths = `-- name: ListAllLibraryPaths :many
+SELECT id, library_id, path, created_at
+FROM library_paths
+ORDER BY library_id, created_at
+`
+
+func (q *Queries) ListAllLibraryPaths(ctx context.Context) ([]LibraryPath, error) {
+	rows, err := q.db.QueryContext(ctx, listAllLibraryPaths)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []LibraryPath
+	for rows.Next() {
+		var i LibraryPath
+		if err := rows.Scan(
+			&i.ID,
+			&i.LibraryID,
+			&i.Path,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listLibraries = `-- name: ListLibraries :many
-SELECT id, name, path, created_at, updated_at
+SELECT id, name, created_at, updated_at
 FROM libraries
 ORDER BY name
 `
@@ -120,7 +184,6 @@ func (q *Queries) ListLibraries(ctx context.Context) ([]Library, error) {
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
-			&i.Path,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -138,7 +201,7 @@ func (q *Queries) ListLibraries(ctx context.Context) ([]Library, error) {
 }
 
 const listLibrariesForUser = `-- name: ListLibrariesForUser :many
-SELECT l.id, l.name, l.path, l.created_at, l.updated_at
+SELECT l.id, l.name, l.created_at, l.updated_at
 FROM libraries l
 JOIN library_access la ON la.library_id = l.id
 WHERE la.user_id = ?
@@ -157,7 +220,6 @@ func (q *Queries) ListLibrariesForUser(ctx context.Context, userID string) ([]Li
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
-			&i.Path,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -222,6 +284,55 @@ func (q *Queries) ListLibraryMembers(ctx context.Context, libraryID string) ([]L
 	return items, nil
 }
 
+const listLibraryPaths = `-- name: ListLibraryPaths :many
+SELECT id, library_id, path, created_at
+FROM library_paths
+WHERE library_id = ?
+ORDER BY created_at
+`
+
+func (q *Queries) ListLibraryPaths(ctx context.Context, libraryID string) ([]LibraryPath, error) {
+	rows, err := q.db.QueryContext(ctx, listLibraryPaths, libraryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []LibraryPath
+	for rows.Next() {
+		var i LibraryPath
+		if err := rows.Scan(
+			&i.ID,
+			&i.LibraryID,
+			&i.Path,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const removeLibraryPath = `-- name: RemoveLibraryPath :exec
+DELETE FROM library_paths WHERE id = ? AND library_id = ?
+`
+
+type RemoveLibraryPathParams struct {
+	ID        string
+	LibraryID string
+}
+
+func (q *Queries) RemoveLibraryPath(ctx context.Context, arg RemoveLibraryPathParams) error {
+	_, err := q.db.ExecContext(ctx, removeLibraryPath, arg.ID, arg.LibraryID)
+	return err
+}
+
 const revokeLibraryAccess = `-- name: RevokeLibraryAccess :exec
 DELETE FROM library_access WHERE library_id = ? AND user_id = ?
 `
@@ -238,24 +349,22 @@ func (q *Queries) RevokeLibraryAccess(ctx context.Context, arg RevokeLibraryAcce
 
 const updateLibrary = `-- name: UpdateLibrary :one
 UPDATE libraries
-SET name = ?, path = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+SET name = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
 WHERE id = ?
-RETURNING id, name, path, created_at, updated_at
+RETURNING id, name, created_at, updated_at
 `
 
 type UpdateLibraryParams struct {
 	Name string
-	Path string
 	ID   string
 }
 
 func (q *Queries) UpdateLibrary(ctx context.Context, arg UpdateLibraryParams) (Library, error) {
-	row := q.db.QueryRowContext(ctx, updateLibrary, arg.Name, arg.Path, arg.ID)
+	row := q.db.QueryRowContext(ctx, updateLibrary, arg.Name, arg.ID)
 	var i Library
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.Path,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

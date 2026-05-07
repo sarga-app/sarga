@@ -48,7 +48,7 @@ func Run(ctx context.Context, cfg *config.Config, dbInst *db.DB) error {
 
 	q := queries.New(dbInst.Write())
 	authH := auth.NewHandler(q, domauth.JWTConfig{Secret: secret})
-	libsH := libraries.NewHandler(q)
+	libsH := libraries.NewHandler(dbInst)
 	docsH, err := docs.NewHandler()
 	if err != nil {
 		return fmt.Errorf("init docs handler: %w", err)

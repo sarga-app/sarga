@@ -307,20 +307,32 @@ components:
 
     Library:
       type: object
-      required: [id, name, path, created_at, updated_at]
+      required: [id, name, paths, created_at, updated_at]
       properties:
         id: { type: string, format: uuid }
         name: { type: string, example: "Main Library" }
-        path: { type: string, example: "/mnt/music" }
+        paths:
+          type: array
+          description: |
+            One or more filesystem locations the library scans. Each path
+            is unique across the entire server — a path cannot belong to
+            two libraries simultaneously.
+          items: { type: string, example: "/mnt/music/flac" }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
     LibraryWrite:
       type: object
-      required: [name, path]
+      required: [name, paths]
       properties:
         name: { type: string, minLength: 1, example: "Main Library" }
-        path: { type: string, minLength: 1, example: "/mnt/music" }
+        paths:
+          type: array
+          minItems: 1
+          description: |
+            Replace-all semantics on update — the supplied list becomes the
+            full set of scan paths, any not in the list are removed.
+          items: { type: string, minLength: 1, example: "/mnt/music/flac" }
 
     LibraryMember:
       type: object
