@@ -124,10 +124,7 @@ func TestLoad_InvalidValuesFailValidation(t *testing.T) {
 func TestValidate(t *testing.T) {
 	t.Parallel()
 
-	okDB := config.DatabaseConfig{
-		Host: "localhost", Port: 5432, User: "sarga", Name: "sarga",
-		Password: "sarga", SSLMode: "disable",
-	}
+	okDB := config.DatabaseConfig{}
 	okData := config.DataConfig{Dir: "./data"}
 	tests := []struct {
 		name    string
@@ -162,24 +159,6 @@ func TestValidate(t *testing.T) {
 			name:    "bad format",
 			cfg:     config.Config{Server: config.ServerConfig{Addr: ":8080"}, Log: config.LogConfig{Level: "info", Format: "xml"}, Database: okDB},
 			wantErr: "log.format",
-		},
-		{
-			name: "empty db password",
-			cfg: config.Config{
-				Server:   config.ServerConfig{Addr: ":8080"},
-				Log:      config.LogConfig{Level: "info", Format: "text"},
-				Database: config.DatabaseConfig{Host: "localhost", Port: 5432, User: "sarga", Name: "sarga", SSLMode: "disable"},
-			},
-			wantErr: "database.password",
-		},
-		{
-			name: "bad sslmode",
-			cfg: config.Config{
-				Server:   config.ServerConfig{Addr: ":8080"},
-				Log:      config.LogConfig{Level: "info", Format: "text"},
-				Database: config.DatabaseConfig{Host: "localhost", Port: 5432, User: "sarga", Name: "sarga", Password: "x", SSLMode: "yes"},
-			},
-			wantErr: "database.sslmode",
 		},
 	}
 

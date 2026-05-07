@@ -52,27 +52,17 @@ type LogConfig struct {
 	Format string `koanf:"format"` // text | json
 }
 
+// DatabaseConfig describes the SQLite database. Path defaults to "" which the
+// serve command resolves to <data.dir>/sarga.db.
 type DatabaseConfig struct {
-	Host        string `koanf:"host"`
-	Port        int    `koanf:"port"`
-	User        string `koanf:"user"`
-	Name        string `koanf:"name"`
-	Password    string `koanf:"password"`
-	SSLMode     string `koanf:"sslmode"`
-	MaxConns    int32  `koanf:"maxconns"`
+	Path        string `koanf:"path"`
 	AutoMigrate bool   `koanf:"automigrate"`
 }
 
 func (d DatabaseConfig) LogValue() slog.Value {
 	return slog.GroupValue(
-		slog.String("host", d.Host),
-		slog.Int("port", d.Port),
-		slog.String("user", d.User),
-		slog.String("name", d.Name),
-		slog.String("sslmode", d.SSLMode),
-		slog.Int("maxconns", int(d.MaxConns)),
+		slog.String("path", d.Path),
 		slog.Bool("automigrate", d.AutoMigrate),
-		slog.String("password", redactedMarker(d.Password)),
 	)
 }
 
@@ -87,13 +77,7 @@ var defaults = map[string]any{
 	"server.addr":          ":8080",
 	"log.level":            "info",
 	"log.format":           "text",
-	"database.host":        "postgres",
-	"database.port":        5432,
-	"database.user":        "sarga",
-	"database.name":        "sarga",
-	"database.password":    "sarga",
-	"database.sslmode":     "disable",
-	"database.maxconns":    0,
+	"database.path":        "",
 	"database.automigrate": true,
 	"data.dir":             "./data",
 }
@@ -148,30 +132,6 @@ func (c Config) Validate() error {
 	case "text", "json":
 	default:
 		return fmt.Errorf("log.format must be one of text/json, got %q", c.Log.Format)
-	}
-
-	if c.Database.Host == "" {
-		return errors.New("database.host must not be empty")
-	}
-	if c.Database.Port <= 0 || c.Database.Port > 65535 {
-		return fmt.Errorf("database.port must be 1..65535, got %d", c.Database.Port)
-	}
-	if c.Database.User == "" {
-		return errors.New("database.user must not be empty")
-	}
-	if c.Database.Name == "" {
-		return errors.New("database.name must not be empty")
-	}
-	switch c.Database.SSLMode {
-	case "disable", "allow", "prefer", "require", "verify-ca", "verify-full":
-	default:
-		return fmt.Errorf("database.sslmode invalid: %q", c.Database.SSLMode)
-	}
-	if c.Database.MaxConns < 0 {
-		return fmt.Errorf("database.maxconns must be >= 0, got %d", c.Database.MaxConns)
-	}
-	if c.Database.Password == "" {
-		return errors.New("database.password must not be empty")
 	}
 
 	if s := c.Auth.JWT.Secret; s != "" && len(s) < JWTSecretMinBytes {

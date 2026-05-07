@@ -74,7 +74,7 @@ func (c JWTConfig) now() time.Time {
 	return time.Now()
 }
 
-func IssueAccessToken(cfg JWTConfig, userID uuid.UUID, isAdmin bool) (string, error) {
+func IssueAccessToken(cfg JWTConfig, userID string, isAdmin bool) (string, error) {
 	if len(cfg.Secret) == 0 {
 		return "", errors.New("jwt: empty secret")
 	}
@@ -82,7 +82,7 @@ func IssueAccessToken(cfg JWTConfig, userID uuid.UUID, isAdmin bool) (string, er
 	claims := AccessClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    cfg.issuer(),
-			Subject:   userID.String(),
+			Subject:   userID,
 			Audience:  jwt.ClaimStrings{cfg.audience()},
 			ExpiresAt: jwt.NewNumericDate(now.Add(AccessTTL)),
 			IssuedAt:  jwt.NewNumericDate(now),

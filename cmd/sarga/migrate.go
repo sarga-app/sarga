@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -24,7 +25,7 @@ var migrateUpCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return db.MigrateUp(cmd.Context(), cfg.Database)
+		return db.MigrateUp(cmd.Context(), dbPathFromConfig(cfg))
 	},
 }
 
@@ -36,7 +37,7 @@ var migrateDownCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return db.MigrateDown(cmd.Context(), cfg.Database)
+		return db.MigrateDown(cmd.Context(), dbPathFromConfig(cfg))
 	},
 }
 
@@ -48,7 +49,7 @@ var migrateStatusCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		statuses, err := db.MigrateStatus(cmd.Context(), cfg.Database)
+		statuses, err := db.MigrateStatus(cmd.Context(), dbPathFromConfig(cfg))
 		if err != nil {
 			return err
 		}
@@ -61,6 +62,13 @@ var migrateStatusCmd = &cobra.Command{
 		}
 		return nil
 	},
+}
+
+func dbPathFromConfig(cfg *config.Config) string {
+	if cfg.Database.Path != "" {
+		return cfg.Database.Path
+	}
+	return filepath.Join(cfg.Data.Dir, "sarga.db")
 }
 
 func init() {

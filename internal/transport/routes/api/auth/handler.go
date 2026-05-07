@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 
 	domauth "github.com/sarga-app/sarga/internal/domain/auth"
 	"github.com/sarga-app/sarga/internal/support/db/queries"
@@ -44,7 +44,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.store.GetUserByUsername(r.Context(), username)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			_, _ = domauth.Verify(req.Password, dummyHash) //nolint:errcheck // intentional: only side effect (CPU time) matters
 			httpx.WriteError(w, http.StatusUnauthorized, "invalid_credentials", "invalid credentials")
 			return
@@ -108,7 +108,7 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusUnauthorized, "replay_detected", "session terminated")
 		return
 	}
-	if time.Now().After(row.ExpiresAt) {
+	if time.Now().After(parseRFC3339(row.ExpiresAt)) {
 		clearRefreshCookie(w, r)
 		httpx.WriteError(w, http.StatusUnauthorized, "expired_refresh", "refresh token expired")
 		return
@@ -120,7 +120,7 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusUnauthorized, "invalid_credentials", "invalid credentials")
 		return
 	}
-	if user.PasswordChangedAt != nil && row.CreatedAt.Before(*user.PasswordChangedAt) {
+	if user.PasswordChangedAt != nil && parseRFC3339(row.CreatedAt).Before(parseRFC3339(*user.PasswordChangedAt)) {
 		if rErr := h.store.RevokeRefreshToken(r.Context(), row.ID); rErr != nil {
 			slog.Warn("refresh: revoke after password change failed", "token_id", row.ID, "err", rErr)
 		}
@@ -172,7 +172,7 @@ func (h *Handler) tryRevokeFromCookie(r *http.Request) {
 	}
 }
 
-func (h *Handler) issueSession(w http.ResponseWriter, r *http.Request, user queries.User, parentID *uuid.UUID) error {
+func (h *Handler) issueSession(w http.ResponseWriter, r *http.Request, user queries.User, parentID *string) error {
 	access, err := domauth.IssueAccessToken(h.jwt, user.ID, user.IsAdmin)
 	if err != nil {
 		return err
@@ -181,11 +181,14 @@ func (h *Handler) issueSession(w http.ResponseWriter, r *http.Request, user quer
 	if err != nil {
 		return err
 	}
+	now := time.Now().UTC()
 	if _, err := h.store.CreateRefreshToken(r.Context(), queries.CreateRefreshTokenParams{
+		ID:        uuid.New().String(),
 		UserID:    user.ID,
 		TokenHash: refresh.Hash,
-		ExpiresAt: time.Now().Add(domauth.RefreshTTL),
+		ExpiresAt: now.Add(domauth.RefreshTTL).Format(time.RFC3339),
 		ParentID:  parentID,
+		CreatedAt: now.Format(time.RFC3339),
 	}); err != nil {
 		return err
 	}
@@ -195,6 +198,17 @@ func (h *Handler) issueSession(w http.ResponseWriter, r *http.Request, user quer
 		ExpiresIn:   int(domauth.AccessTTL.Seconds()),
 	})
 	return nil
+}
+
+// parseRFC3339 parses a stored RFC3339 timestamp. Returns zero time on
+// failure — callers treat zero as the earliest possible time, making
+// expiry/revocation checks fire rather than silently pass.
+func parseRFC3339(s string) time.Time {
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return time.Time{}
+	}
+	return t
 }
 
 // dummyHash defeats username-enumeration via login-latency timing.

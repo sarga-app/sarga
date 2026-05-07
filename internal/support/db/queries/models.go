@@ -4,232 +4,225 @@
 
 package queries
 
-import (
-	"time"
-
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
-)
-
 type Artist struct {
-	ID        uuid.UUID
-	Mbid      *uuid.UUID
+	ID        string
+	Mbid      *string
 	Name      string
 	SortName  string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	CreatedAt string
+	UpdatedAt string
 }
 
 type CoverArt struct {
-	ID             uuid.UUID
-	ReleaseID      *uuid.UUID
-	ReleaseGroupID *uuid.UUID
-	ArtistID       *uuid.UUID
+	ID             string
+	ReleaseID      *string
+	ReleaseGroupID *string
+	ArtistID       *string
 	SourceKind     string
 	Uri            string
-	Width          *int32
-	Height         *int32
+	Width          *int64
+	Height         *int64
 	ContentHash    []byte
 	IsPreferred    bool
-	FetchedAt      time.Time
+	FetchedAt      string
 }
 
 type Library struct {
-	ID        uuid.UUID
+	ID        string
 	Name      string
 	Path      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	CreatedAt string
+	UpdatedAt string
 }
 
 type LibraryAccess struct {
-	LibraryID uuid.UUID
-	UserID    uuid.UUID
+	LibraryID string
+	UserID    string
 	Role      string
-	GrantedAt time.Time
+	GrantedAt string
 }
 
 type ListeningEvent struct {
-	ID                 uuid.UUID
-	UserID             uuid.UUID
-	TrackID            uuid.UUID
-	TrackFileID        *uuid.UUID
-	PlayedAt           time.Time
-	DurationListenedMs int32
+	ID                 string
+	UserID             string
+	TrackID            string
+	TrackFileID        *string
+	PlayedAt           string
+	DurationListenedMs int64
 	Completed          bool
 	Source             string
 	ClientName         *string
 	ClientVersion      *string
-	CreatedAt          time.Time
+	CreatedAt          string
 }
 
 type Lyric struct {
-	ID        uuid.UUID
-	TrackID   uuid.UUID
+	ID        string
+	TrackID   string
 	Source    string
 	IsSynced  bool
 	Language  *string
 	Content   string
-	FetchedAt time.Time
+	FetchedAt string
 }
 
 type OidcIdentity struct {
-	ID          uuid.UUID
-	UserID      uuid.UUID
+	ID          string
+	UserID      string
 	Issuer      string
 	Subject     string
 	EmailAtLink *string
-	CreatedAt   time.Time
+	CreatedAt   string
 }
 
 type Playlist struct {
-	ID          uuid.UUID
-	OwnerID     uuid.UUID
+	ID          string
+	OwnerID     string
 	Name        string
 	Description *string
 	IsPublic    bool
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	CreatedAt   string
+	UpdatedAt   string
 }
 
 type PlaylistTrack struct {
-	PlaylistID uuid.UUID
-	Position   int32
-	TrackID    uuid.UUID
-	AddedByID  *uuid.UUID
-	AddedAt    time.Time
+	PlaylistID string
+	Position   int64
+	TrackID    string
+	AddedByID  *string
+	AddedAt    string
 }
 
 type RefreshToken struct {
-	ID        uuid.UUID
-	UserID    uuid.UUID
+	ID        string
+	UserID    string
 	TokenHash []byte
-	ExpiresAt time.Time
-	RevokedAt *time.Time
-	ParentID  *uuid.UUID
-	CreatedAt time.Time
+	ExpiresAt string
+	RevokedAt *string
+	ParentID  *string
+	CreatedAt string
 }
 
 type Release struct {
-	ID             uuid.UUID
-	Mbid           *uuid.UUID
-	ReleaseGroupID uuid.UUID
+	ID             string
+	Mbid           *string
+	ReleaseGroupID string
 	Title          string
 	Country        *string
-	ReleaseDate    pgtype.Date
+	ReleaseDate    *string
 	LabelName      *string
 	Barcode        *string
 	EditionNotes   *string
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	CreatedAt      string
+	UpdatedAt      string
 }
 
 type ReleaseArtist struct {
-	ReleaseID uuid.UUID
-	ArtistID  uuid.UUID
-	Position  int32
+	ReleaseID string
+	ArtistID  string
+	Position  int64
 	Role      string
 }
 
 type ReleaseGroup struct {
-	ID               uuid.UUID
-	Mbid             *uuid.UUID
+	ID               string
+	Mbid             *string
 	Title            string
 	PrimaryType      string
-	FirstReleaseYear *int32
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	FirstReleaseYear *int64
+	CreatedAt        string
+	UpdatedAt        string
 }
 
 type ReleaseTrack struct {
-	ReleaseID  uuid.UUID
-	TrackID    uuid.UUID
-	DiscNumber int32
-	Position   int32
+	ReleaseID  string
+	TrackID    string
+	DiscNumber int64
+	Position   int64
 }
 
 type ScanRun struct {
-	ID           uuid.UUID
-	LibraryID    uuid.UUID
-	StartedAt    time.Time
-	FinishedAt   *time.Time
+	ID           string
+	LibraryID    string
+	StartedAt    string
+	FinishedAt   *string
 	Status       string
-	FilesScanned int32
-	FilesAdded   int32
-	FilesUpdated int32
-	FilesRemoved int32
+	FilesScanned int64
+	FilesAdded   int64
+	FilesUpdated int64
+	FilesRemoved int64
 	Error        *string
 }
 
 type ScrobbleOutbox struct {
-	ID               uuid.UUID
-	ListeningEventID uuid.UUID
-	ScrobbleTargetID uuid.UUID
+	ID               string
+	ListeningEventID string
+	ScrobbleTargetID string
 	Status           string
-	AttemptCount     int32
-	LastAttemptedAt  *time.Time
+	AttemptCount     int64
+	LastAttemptedAt  *string
 	LastError        *string
-	CreatedAt        time.Time
-	SentAt           *time.Time
+	CreatedAt        string
+	SentAt           *string
 }
 
 type ScrobbleTarget struct {
-	ID         uuid.UUID
-	UserID     uuid.UUID
+	ID         string
+	UserID     string
 	Kind       string
 	SessionKey string
 	Enabled    bool
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	CreatedAt  string
+	UpdatedAt  string
 }
 
 type Track struct {
-	ID         uuid.UUID
-	Mbid       *uuid.UUID
+	ID         string
+	Mbid       *string
 	Title      string
-	DurationMs *int32
+	DurationMs *int64
 	Isrc       *string
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	CreatedAt  string
+	UpdatedAt  string
 }
 
 type TrackArtist struct {
-	TrackID  uuid.UUID
-	ArtistID uuid.UUID
-	Position int32
+	TrackID  string
+	ArtistID string
+	Position int64
 	Role     string
 }
 
 type TrackFile struct {
-	ID            uuid.UUID
-	TrackID       uuid.UUID
-	LibraryID     uuid.UUID
+	ID            string
+	TrackID       string
+	LibraryID     string
 	RelativePath  string
 	Format        string
 	Codec         string
-	BitrateKbps   *int32
-	SampleRateHz  *int32
-	BitDepth      *int32
-	Channels      int32
+	BitrateKbps   *int64
+	SampleRateHz  *int64
+	BitDepth      *int64
+	Channels      int64
 	FileSizeBytes int64
-	Mtime         time.Time
+	Mtime         string
 	ContentHash   []byte
 	SourceKind    string
 	IsLossless    bool
 	IsPreferred   bool
-	AddedAt       time.Time
-	UpdatedAt     time.Time
+	AddedAt       string
+	UpdatedAt     string
 }
 
 type User struct {
-	ID                uuid.UUID
+	ID                string
 	Username          string
 	Email             *string
 	PasswordHash      *string
 	DisplayName       *string
 	IsAdmin           bool
-	DisabledAt        *time.Time
-	PasswordChangedAt *time.Time
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
+	DisabledAt        *string
+	PasswordChangedAt *string
+	CreatedAt         string
+	UpdatedAt         string
 }

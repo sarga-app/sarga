@@ -8,12 +8,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/sync/errgroup"
 
 	domauth "github.com/sarga-app/sarga/internal/domain/auth"
 	"github.com/sarga-app/sarga/internal/support/config"
 	"github.com/sarga-app/sarga/internal/support/datadir"
+	"github.com/sarga-app/sarga/internal/support/db"
 	"github.com/sarga-app/sarga/internal/support/db/queries"
 	"github.com/sarga-app/sarga/internal/transport/routes/api"
 	"github.com/sarga-app/sarga/internal/transport/routes/api/auth"
@@ -30,7 +30,7 @@ const (
 	maxHeaderBytes    = 1 << 20
 )
 
-func Run(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool) error {
+func Run(ctx context.Context, cfg *config.Config, dbInst *db.DB) error {
 	dirs, err := datadir.New(cfg.Data.Dir)
 	if err != nil {
 		return fmt.Errorf("init data dir: %w", err)
@@ -40,7 +40,7 @@ func Run(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool) error {
 		return fmt.Errorf("resolve jwt secret: %w", err)
 	}
 
-	q := queries.New(pool)
+	q := queries.New(dbInst.Write())
 	authH := auth.NewHandler(q, domauth.JWTConfig{Secret: secret})
 	docsH, err := docs.NewHandler()
 	if err != nil {
@@ -48,7 +48,7 @@ func Run(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool) error {
 	}
 
 	deps := Deps{
-		DB:  pool,
+		DB:  dbInst,
 		API: api.Deps{Auth: authH, Docs: docsH},
 	}
 

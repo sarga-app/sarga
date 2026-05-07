@@ -4,6 +4,7 @@ package auth
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -14,7 +15,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 
 	domauth "github.com/sarga-app/sarga/internal/domain/auth"
 	"github.com/sarga-app/sarga/internal/support/db/queries"
@@ -23,18 +23,18 @@ import (
 
 type fakeStore struct {
 	mu       sync.Mutex
-	users    map[uuid.UUID]*queries.User
-	byName   map[string]uuid.UUID
+	users    map[string]*queries.User
+	byName   map[string]string
 	tokens   map[string]*queries.RefreshToken
-	tokenIDs map[uuid.UUID]string
+	tokenIDs map[string]string
 }
 
 func newFakeStore() *fakeStore {
 	return &fakeStore{
-		users:    map[uuid.UUID]*queries.User{},
-		byName:   map[string]uuid.UUID{},
+		users:    map[string]*queries.User{},
+		byName:   map[string]string{},
 		tokens:   map[string]*queries.RefreshToken{},
-		tokenIDs: map[uuid.UUID]string{},
+		tokenIDs: map[string]string{},
 	}
 }
 
@@ -51,17 +51,17 @@ func (s *fakeStore) GetUserByUsername(_ context.Context, username string) (queri
 	defer s.mu.Unlock()
 	id, ok := s.byName[username]
 	if !ok {
-		return queries.User{}, pgx.ErrNoRows
+		return queries.User{}, sql.ErrNoRows
 	}
 	return *s.users[id], nil
 }
 
-func (s *fakeStore) GetUserByID(_ context.Context, id uuid.UUID) (queries.User, error) {
+func (s *fakeStore) GetUserByID(_ context.Context, id string) (queries.User, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	u, ok := s.users[id]
 	if !ok {
-		return queries.User{}, pgx.ErrNoRows
+		return queries.User{}, sql.ErrNoRows
 	}
 	return *u, nil
 }
@@ -74,7 +74,7 @@ func (s *fakeStore) UpdateUserPassword(_ context.Context, p queries.UpdateUserPa
 		return errors.New("not found")
 	}
 	u.PasswordHash = p.PasswordHash
-	now := time.Now()
+	now := time.Now().UTC().Format(time.RFC3339)
 	u.PasswordChangedAt = &now
 	return nil
 }
@@ -83,12 +83,12 @@ func (s *fakeStore) CreateRefreshToken(_ context.Context, p queries.CreateRefres
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	rt := queries.RefreshToken{
-		ID:        uuid.New(),
+		ID:        p.ID,
 		UserID:    p.UserID,
 		TokenHash: p.TokenHash,
 		ExpiresAt: p.ExpiresAt,
 		ParentID:  p.ParentID,
-		CreatedAt: time.Now(),
+		CreatedAt: p.CreatedAt,
 	}
 	key := string(p.TokenHash)
 	s.tokens[key] = &rt
@@ -101,27 +101,27 @@ func (s *fakeStore) GetRefreshTokenByHash(_ context.Context, hash []byte) (queri
 	defer s.mu.Unlock()
 	rt, ok := s.tokens[string(hash)]
 	if !ok {
-		return queries.RefreshToken{}, pgx.ErrNoRows
+		return queries.RefreshToken{}, sql.ErrNoRows
 	}
 	return *rt, nil
 }
 
-func (s *fakeStore) RevokeRefreshToken(_ context.Context, id uuid.UUID) error {
+func (s *fakeStore) RevokeRefreshToken(_ context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	key, ok := s.tokenIDs[id]
 	if !ok {
 		return nil
 	}
-	now := time.Now()
+	now := time.Now().UTC().Format(time.RFC3339)
 	s.tokens[key].RevokedAt = &now
 	return nil
 }
 
-func (s *fakeStore) RevokeAllUserRefreshTokens(_ context.Context, userID uuid.UUID) error {
+func (s *fakeStore) RevokeAllUserRefreshTokens(_ context.Context, userID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	now := time.Now()
+	now := time.Now().UTC().Format(time.RFC3339)
 	for _, rt := range s.tokens {
 		if rt.UserID == userID && rt.RevokedAt == nil {
 			rt.RevokedAt = &now
@@ -137,20 +137,21 @@ func newTestHandler(t *testing.T) (*Handler, *fakeStore) {
 	return NewHandler(store, jwt), store
 }
 
-func seedUser(t *testing.T, store *fakeStore, username, password string, isAdmin bool) uuid.UUID {
+func seedUser(t *testing.T, store *fakeStore, username, password string, isAdmin bool) string {
 	t.Helper()
 	hash, err := domauth.Hash(password)
 	if err != nil {
 		t.Fatal(err)
 	}
-	id := uuid.New()
+	id := uuid.New().String()
+	now := time.Now().UTC().Format(time.RFC3339)
 	store.addUser(queries.User{
 		ID:           id,
 		Username:     username,
 		PasswordHash: &hash,
 		IsAdmin:      isAdmin,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	})
 	return id
 }
