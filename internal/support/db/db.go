@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"runtime"
 
-	_ "modernc.org/sqlite"
+	_ "modernc.org/sqlite" // register sqlite driver
 )
 
 const (
@@ -45,14 +45,14 @@ func New(path string) (*DB, error) {
 		return nil, fmt.Errorf("open write pool: %w", err)
 	}
 	write.SetMaxOpenConns(1)
-	if err := write.Ping(); err != nil {
-		_ = write.Close()
+	if err = write.PingContext(context.Background()); err != nil {
+		write.Close() //nolint:errcheck // cleanup on error path
 		return nil, fmt.Errorf("ping write pool: %w", err)
 	}
 
 	read, err := sql.Open("sqlite", dsn)
 	if err != nil {
-		_ = write.Close()
+		write.Close() //nolint:errcheck // cleanup on error path
 		return nil, fmt.Errorf("open read pool: %w", err)
 	}
 	n := runtime.GOMAXPROCS(0) * 2
@@ -60,9 +60,9 @@ func New(path string) (*DB, error) {
 		n = 4
 	}
 	read.SetMaxOpenConns(n)
-	if err := read.Ping(); err != nil {
-		_ = write.Close()
-		_ = read.Close()
+	if err = read.PingContext(context.Background()); err != nil {
+		write.Close() //nolint:errcheck // cleanup on error path
+		read.Close()  //nolint:errcheck // cleanup on error path
 		return nil, fmt.Errorf("ping read pool: %w", err)
 	}
 

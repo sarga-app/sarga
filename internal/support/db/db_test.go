@@ -1,3 +1,4 @@
+//nolint:testpackage // tests unexported buildDSN
 package db
 
 import (

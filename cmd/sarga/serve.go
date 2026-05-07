@@ -45,7 +45,11 @@ var serveCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer dbInst.Close()
+		defer func() {
+			if err := dbInst.Close(); err != nil {
+				slog.Error("db close", "err", err)
+			}
+		}()
 
 		return transport.Run(ctx, cfg, dbInst)
 	},
