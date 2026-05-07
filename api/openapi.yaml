@@ -23,6 +23,8 @@ tags:
     description: Login, session refresh, logout.
   - name: identity
     description: Caller identity.
+  - name: libraries
+    description: Library management. Write operations require admin role.
 
 paths:
   /auth/login:
@@ -82,6 +84,166 @@ paths:
       responses:
         '204': { description: Logged out. }
         '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /libraries:
+    get:
+      tags: [libraries]
+      operationId: listLibraries
+      summary: List libraries
+      description: |
+        Admins receive all libraries. Non-admins receive only libraries they
+        have been granted access to.
+      responses:
+        '200':
+          description: Library list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [libraries]
+                properties:
+                  libraries:
+                    type: array
+                    items: { $ref: '#/components/schemas/Library' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [libraries]
+      operationId: createLibrary
+      summary: Create library
+      description: Admin only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LibraryWrite' }
+      responses:
+        '201':
+          description: Library created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Library' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /libraries/{libraryId}:
+    parameters:
+      - name: libraryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [libraries]
+      operationId: getLibrary
+      summary: Get library
+      description: |
+        Admins can fetch any library. Non-admins can fetch only libraries they
+        have been granted access to.
+      responses:
+        '200':
+          description: Library.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Library' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [libraries]
+      operationId: updateLibrary
+      summary: Update library
+      description: Admin only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LibraryWrite' }
+      responses:
+        '200':
+          description: Updated library.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Library' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [libraries]
+      operationId: deleteLibrary
+      summary: Delete library
+      description: Admin only. Also deletes all access grants for this library.
+      responses:
+        '204': { description: Library deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /libraries/{libraryId}/access:
+    parameters:
+      - name: libraryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [libraries]
+      operationId: listLibraryMembers
+      summary: List library members
+      description: Admin only.
+      responses:
+        '200':
+          description: Member list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [members]
+                properties:
+                  members:
+                    type: array
+                    items: { $ref: '#/components/schemas/LibraryMember' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [libraries]
+      operationId: grantLibraryAccess
+      summary: Grant or update access
+      description: Admin only. Upserts the access record (safe to call again to change role).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GrantAccessRequest' }
+      responses:
+        '204': { description: Access granted. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /libraries/{libraryId}/access/{userId}:
+    parameters:
+      - name: libraryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: userId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [libraries]
+      operationId: revokeLibraryAccess
+      summary: Revoke access
+      description: Admin only.
+      responses:
+        '204': { description: Access revoked. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /me:
     get:
@@ -143,6 +305,40 @@ components:
             code: { type: string, example: invalid_credentials }
             message: { type: string }
 
+    Library:
+      type: object
+      required: [id, name, path, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, example: "Main Library" }
+        path: { type: string, example: "/mnt/music" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    LibraryWrite:
+      type: object
+      required: [name, path]
+      properties:
+        name: { type: string, minLength: 1, example: "Main Library" }
+        path: { type: string, minLength: 1, example: "/mnt/music" }
+
+    LibraryMember:
+      type: object
+      required: [user_id, username, role, granted_at]
+      properties:
+        user_id: { type: string, format: uuid }
+        username: { type: string }
+        display_name: { type: string, nullable: true }
+        role: { type: string, enum: [viewer, contributor, admin] }
+        granted_at: { type: string, format: date-time }
+
+    GrantAccessRequest:
+      type: object
+      required: [user_id, role]
+      properties:
+        user_id: { type: string, format: uuid }
+        role: { type: string, enum: [viewer, contributor, admin] }
+
   responses:
     BadRequest:
       description: Malformed request.
@@ -151,6 +347,21 @@ components:
           schema: { $ref: '#/components/schemas/Error' }
     Unauthorized:
       description: Missing or invalid credentials.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Insufficient permissions.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Resource already exists or name conflict.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }

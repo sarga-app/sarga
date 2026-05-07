@@ -13,9 +13,11 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/go-chi/chi/v5"
+	"github.com/oapi-codegen/runtime"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
@@ -23,12 +25,90 @@ const (
 	BearerAuthScopes bearerAuthContextKey = "bearerAuth.Scopes"
 )
 
+// Defines values for GrantAccessRequestRole.
+const (
+	GrantAccessRequestRoleAdmin       GrantAccessRequestRole = "admin"
+	GrantAccessRequestRoleContributor GrantAccessRequestRole = "contributor"
+	GrantAccessRequestRoleViewer      GrantAccessRequestRole = "viewer"
+)
+
+// Valid indicates whether the value is a known member of the GrantAccessRequestRole enum.
+func (e GrantAccessRequestRole) Valid() bool {
+	switch e {
+	case GrantAccessRequestRoleAdmin:
+		return true
+	case GrantAccessRequestRoleContributor:
+		return true
+	case GrantAccessRequestRoleViewer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LibraryMemberRole.
+const (
+	LibraryMemberRoleAdmin       LibraryMemberRole = "admin"
+	LibraryMemberRoleContributor LibraryMemberRole = "contributor"
+	LibraryMemberRoleViewer      LibraryMemberRole = "viewer"
+)
+
+// Valid indicates whether the value is a known member of the LibraryMemberRole enum.
+func (e LibraryMemberRole) Valid() bool {
+	switch e {
+	case LibraryMemberRoleAdmin:
+		return true
+	case LibraryMemberRoleContributor:
+		return true
+	case LibraryMemberRoleViewer:
+		return true
+	default:
+		return false
+	}
+}
+
 // Error defines model for Error.
 type Error struct {
 	Error struct {
 		Code    string `json:"code"`
 		Message string `json:"message"`
 	} `json:"error"`
+}
+
+// GrantAccessRequest defines model for GrantAccessRequest.
+type GrantAccessRequest struct {
+	Role   GrantAccessRequestRole `json:"role"`
+	UserId openapi_types.UUID     `json:"user_id"`
+}
+
+// GrantAccessRequestRole defines model for GrantAccessRequest.Role.
+type GrantAccessRequestRole string
+
+// Library defines model for Library.
+type Library struct {
+	CreatedAt time.Time          `json:"created_at"`
+	Id        openapi_types.UUID `json:"id"`
+	Name      string             `json:"name"`
+	Path      string             `json:"path"`
+	UpdatedAt time.Time          `json:"updated_at"`
+}
+
+// LibraryMember defines model for LibraryMember.
+type LibraryMember struct {
+	DisplayName *string            `json:"display_name,omitempty"`
+	GrantedAt   time.Time          `json:"granted_at"`
+	Role        LibraryMemberRole  `json:"role"`
+	UserId      openapi_types.UUID `json:"user_id"`
+	Username    string             `json:"username"`
+}
+
+// LibraryMemberRole defines model for LibraryMember.Role.
+type LibraryMemberRole string
+
+// LibraryWrite defines model for LibraryWrite.
+type LibraryWrite struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
 }
 
 // LoginRequest defines model for LoginRequest.
@@ -55,6 +135,15 @@ type MeResponse struct {
 // BadRequest defines model for BadRequest.
 type BadRequest = Error
 
+// Conflict defines model for Conflict.
+type Conflict = Error
+
+// Forbidden defines model for Forbidden.
+type Forbidden = Error
+
+// NotFound defines model for NotFound.
+type NotFound = Error
+
 // TooManyRequests defines model for TooManyRequests.
 type TooManyRequests = Error
 
@@ -67,6 +156,15 @@ type bearerAuthContextKey string
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
 
+// CreateLibraryJSONRequestBody defines body for CreateLibrary for application/json ContentType.
+type CreateLibraryJSONRequestBody = LibraryWrite
+
+// UpdateLibraryJSONRequestBody defines body for UpdateLibrary for application/json ContentType.
+type UpdateLibraryJSONRequestBody = LibraryWrite
+
+// GrantLibraryAccessJSONRequestBody defines body for GrantLibraryAccess for application/json ContentType.
+type GrantLibraryAccessJSONRequestBody = GrantAccessRequest
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Log in
@@ -78,6 +176,30 @@ type ServerInterface interface {
 	// Rotate session
 	// (POST /auth/refresh)
 	Refresh(w http.ResponseWriter, r *http.Request)
+	// List libraries
+	// (GET /libraries)
+	ListLibraries(w http.ResponseWriter, r *http.Request)
+	// Create library
+	// (POST /libraries)
+	CreateLibrary(w http.ResponseWriter, r *http.Request)
+	// Delete library
+	// (DELETE /libraries/{libraryId})
+	DeleteLibrary(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID)
+	// Get library
+	// (GET /libraries/{libraryId})
+	GetLibrary(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID)
+	// Update library
+	// (PUT /libraries/{libraryId})
+	UpdateLibrary(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID)
+	// List library members
+	// (GET /libraries/{libraryId}/access)
+	ListLibraryMembers(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID)
+	// Grant or update access
+	// (POST /libraries/{libraryId}/access)
+	GrantLibraryAccess(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID)
+	// Revoke access
+	// (DELETE /libraries/{libraryId}/access/{userId})
+	RevokeLibraryAccess(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID, userId openapi_types.UUID)
 	// Current user
 	// (GET /me)
 	Me(w http.ResponseWriter, r *http.Request)
@@ -102,6 +224,54 @@ func (_ Unimplemented) Logout(w http.ResponseWriter, r *http.Request) {
 // Rotate session
 // (POST /auth/refresh)
 func (_ Unimplemented) Refresh(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// List libraries
+// (GET /libraries)
+func (_ Unimplemented) ListLibraries(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Create library
+// (POST /libraries)
+func (_ Unimplemented) CreateLibrary(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Delete library
+// (DELETE /libraries/{libraryId})
+func (_ Unimplemented) DeleteLibrary(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get library
+// (GET /libraries/{libraryId})
+func (_ Unimplemented) GetLibrary(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Update library
+// (PUT /libraries/{libraryId})
+func (_ Unimplemented) UpdateLibrary(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// List library members
+// (GET /libraries/{libraryId}/access)
+func (_ Unimplemented) ListLibraryMembers(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Grant or update access
+// (POST /libraries/{libraryId}/access)
+func (_ Unimplemented) GrantLibraryAccess(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Revoke access
+// (DELETE /libraries/{libraryId}/access/{userId})
+func (_ Unimplemented) RevokeLibraryAccess(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID, userId openapi_types.UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -153,6 +323,247 @@ func (siw *ServerInterfaceWrapper) Refresh(w http.ResponseWriter, r *http.Reques
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Refresh(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListLibraries operation middleware
+func (siw *ServerInterfaceWrapper) ListLibraries(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListLibraries(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateLibrary operation middleware
+func (siw *ServerInterfaceWrapper) CreateLibrary(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateLibrary(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteLibrary operation middleware
+func (siw *ServerInterfaceWrapper) DeleteLibrary(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "libraryId" -------------
+	var libraryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "libraryId", chi.URLParam(r, "libraryId"), &libraryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "libraryId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteLibrary(w, r, libraryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetLibrary operation middleware
+func (siw *ServerInterfaceWrapper) GetLibrary(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "libraryId" -------------
+	var libraryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "libraryId", chi.URLParam(r, "libraryId"), &libraryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "libraryId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetLibrary(w, r, libraryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateLibrary operation middleware
+func (siw *ServerInterfaceWrapper) UpdateLibrary(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "libraryId" -------------
+	var libraryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "libraryId", chi.URLParam(r, "libraryId"), &libraryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "libraryId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateLibrary(w, r, libraryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListLibraryMembers operation middleware
+func (siw *ServerInterfaceWrapper) ListLibraryMembers(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "libraryId" -------------
+	var libraryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "libraryId", chi.URLParam(r, "libraryId"), &libraryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "libraryId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListLibraryMembers(w, r, libraryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GrantLibraryAccess operation middleware
+func (siw *ServerInterfaceWrapper) GrantLibraryAccess(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "libraryId" -------------
+	var libraryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "libraryId", chi.URLParam(r, "libraryId"), &libraryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "libraryId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GrantLibraryAccess(w, r, libraryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeLibraryAccess operation middleware
+func (siw *ServerInterfaceWrapper) RevokeLibraryAccess(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "libraryId" -------------
+	var libraryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "libraryId", chi.URLParam(r, "libraryId"), &libraryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "libraryId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "userId" -------------
+	var userId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "userId", chi.URLParam(r, "userId"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "userId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeLibraryAccess(w, r, libraryId, userId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -305,6 +716,30 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/auth/refresh", wrapper.Refresh)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/libraries", wrapper.ListLibraries)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/libraries", wrapper.CreateLibrary)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/libraries/{libraryId}", wrapper.DeleteLibrary)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/libraries/{libraryId}", wrapper.GetLibrary)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/libraries/{libraryId}", wrapper.UpdateLibrary)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/libraries/{libraryId}/access", wrapper.ListLibraryMembers)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/libraries/{libraryId}/access", wrapper.GrantLibraryAccess)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/libraries/{libraryId}/access/{userId}", wrapper.RevokeLibraryAccess)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/me", wrapper.Me)
 	})
 
@@ -316,28 +751,42 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
+	"bWgoQBCIDu7G6GpacjfUbGjOL+f/CwAA//8=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

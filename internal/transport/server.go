@@ -12,12 +12,14 @@ import (
 
 	domauth "github.com/sarga-app/sarga/internal/domain/auth"
 	"github.com/sarga-app/sarga/internal/support/config"
+	"github.com/sarga-app/sarga/internal/support/crypto"
 	"github.com/sarga-app/sarga/internal/support/datadir"
 	"github.com/sarga-app/sarga/internal/support/db"
 	"github.com/sarga-app/sarga/internal/support/db/queries"
 	"github.com/sarga-app/sarga/internal/transport/routes/api"
 	"github.com/sarga-app/sarga/internal/transport/routes/api/auth"
 	"github.com/sarga-app/sarga/internal/transport/routes/api/docs"
+	"github.com/sarga-app/sarga/internal/transport/routes/api/libraries"
 )
 
 const (
@@ -39,17 +41,23 @@ func Run(ctx context.Context, cfg *config.Config, dbInst *db.DB) error {
 	if err != nil {
 		return fmt.Errorf("resolve jwt secret: %w", err)
 	}
+	masterKey, err := resolveMasterKey(dirs)
+	if err != nil {
+		return fmt.Errorf("resolve master key: %w", err)
+	}
 
 	q := queries.New(dbInst.Write())
 	authH := auth.NewHandler(q, domauth.JWTConfig{Secret: secret})
+	libsH := libraries.NewHandler(q)
 	docsH, err := docs.NewHandler()
 	if err != nil {
 		return fmt.Errorf("init docs handler: %w", err)
 	}
 
 	deps := Deps{
-		DB:  dbInst,
-		API: api.Deps{Auth: authH, Docs: docsH},
+		DB:        dbInst,
+		MasterKey: masterKey,
+		API:       api.Deps{Auth: authH, Docs: docsH, Libraries: libsH},
 	}
 
 	srv := &http.Server{
@@ -87,6 +95,14 @@ func Run(ctx context.Context, cfg *config.Config, dbInst *db.DB) error {
 	}
 	slog.Info("shutdown complete")
 	return nil
+}
+
+func resolveMasterKey(dirs *datadir.Dirs) (*crypto.MasterKey, error) {
+	path, err := dirs.SecretFile("master.key")
+	if err != nil {
+		return nil, err
+	}
+	return crypto.LoadOrGenerate(path)
 }
 
 func resolveJWTSecret(configured string, dirs *datadir.Dirs) ([]byte, error) {

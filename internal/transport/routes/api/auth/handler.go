@@ -17,10 +17,6 @@ import (
 	"github.com/sarga-app/sarga/internal/transport/routes/api/gen"
 )
 
-// Compile-time assertion: Handler must implement every operation defined in
-// api/openapi.yaml. Spec changes break the build until handlers catch up.
-var _ gen.ServerInterface = (*Handler)(nil)
-
 type Handler struct {
 	store Store
 	jwt   domauth.JWTConfig
@@ -29,6 +25,8 @@ type Handler struct {
 func NewHandler(store Store, jwt domauth.JWTConfig) *Handler {
 	return &Handler{store: store, jwt: jwt}
 }
+
+func (h *Handler) JWTConfig() domauth.JWTConfig { return h.jwt }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var req gen.LoginRequest

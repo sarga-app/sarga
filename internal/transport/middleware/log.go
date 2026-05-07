@@ -17,18 +17,27 @@ func RequestLogger(next http.Handler) http.Handler {
 		start := time.Now()
 
 		defer func() {
-			if r.URL.Path == "/healthz" && ww.Status() < 400 {
+			status := ww.Status()
+			if r.URL.Path == "/healthz" && status < 400 {
 				return
 			}
-			slog.Info("request",
+			attrs := []any{
 				"method", r.Method,
 				"path", r.URL.Path,
-				"status", ww.Status(),
-				"duration_ms", float64(time.Since(start).Microseconds())/1000.0,
+				"status", status,
+				"duration_ms", float64(time.Since(start).Microseconds()) / 1000.0,
 				"request_id", reqID,
 				"remote_ip", r.RemoteAddr,
 				"bytes", ww.BytesWritten(),
-			)
+			}
+			switch {
+			case status >= 500:
+				slog.Warn("request", attrs...)
+			case status >= 400:
+				slog.Info("request", attrs...)
+			default:
+				slog.Debug("request", attrs...)
+			}
 		}()
 
 		next.ServeHTTP(ww, r)
