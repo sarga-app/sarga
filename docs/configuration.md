@@ -12,7 +12,7 @@ Sarga splits configuration into three tiers. They have different homes and diffe
 |---|---|---|---|
 | **Secrets** | Cryptographic keys (`jwt.key`, future `master.key`) | No — restart to rotate | Auto-generated files in `<data-dir>/secrets/`. Don't edit by hand. |
 | **Config** | Server tunables: listen address, DB password, log level, data dir | No — restart to apply | Defaults → `config.yaml` → `SARGA_*` env vars |
-| **Settings** | Operator preferences: registration on/off, SMTP host, etc. | Yes — live | Postgres `server_settings` table, edited via the admin UI (not implemented yet) |
+| **Settings** | Operator preferences: registration on/off, SMTP host, etc. | Yes — live | SQLite `server_settings` table, edited via the admin UI (not implemented yet) |
 
 This page is about **the Config tier** — the server-level knobs you set before launching Sarga.
 
@@ -35,7 +35,7 @@ That's the whole story. There are **no CLI flags for config values** — only `-
 | `config.yaml` | Path passed to `--config` (default: `./config.yaml`) | When env doesn't set the value |
 | `SARGA_*` env vars | Process environment | Always — env wins over YAML |
 
-Naming convention: `SARGA_<SECTION>_<KEY>` maps to `section.key`. Underscores become dots. So `SARGA_DATABASE_PASSWORD` sets `database.password`, and `SARGA_AUTH_JWT_SECRET` sets `auth.jwt.secret`.
+Naming convention: `SARGA_<SECTION>_<KEY>` maps to `section.key`. Underscores become dots. So `SARGA_LOG_LEVEL` sets `log.level`, and `SARGA_AUTH_JWT_SECRET` sets `auth.jwt.secret`.
 
 ---
 
@@ -58,8 +58,7 @@ Whichever delivery mechanism you use, **inside the process the env vars look ide
 ### Docker (most users)
 
 1. Copy `.env.example` to `.env` next to your `compose.yaml`.
-2. Edit `.env` — at minimum, change `SARGA_DATABASE_PASSWORD` to something long and random.
-3. `docker compose up -d`.
+2. `docker compose up -d`.
 
 You don't need a `config.yaml` for a typical install. The bundled defaults plus your `.env` cover everything.
 
@@ -73,19 +72,16 @@ The clean split: durable non-secret settings in YAML, secrets in env.
      addr: ":8080"
    data:
      dir: /var/lib/sarga
-   database:
-     host: localhost
-     sslmode: require
    log:
      level: info
      format: json
    ```
    Commit this to your ops repo. It contains nothing sensitive.
 
-2. **Secrets** — put them in a systemd `EnvironmentFile`, owned by the sarga user, mode `0600`:
+2. **Secrets** — for a standard install there are none to inject; Sarga auto-generates `jwt.key` on first boot. If you're integrating with an external secrets manager, put overrides in a systemd `EnvironmentFile` (mode `0600`):
    ```ini
    # /etc/sarga/sarga.env  (0600, chown sarga:sarga)
-   SARGA_DATABASE_PASSWORD=<long random string>
+   SARGA_AUTH_JWT_SECRET=<inject from vault/KMS if needed>
    ```
 
 3. **Wire it up in the unit:**
@@ -108,27 +104,10 @@ This gives you:
 ### Bare-metal, hand-launched (development / quick test)
 
 ```bash
-SARGA_DATABASE_PASSWORD=test ./sarga serve
+./sarga serve
 ```
 
 Defaults handle everything else. `./data` appears next to the binary on first run.
-
----
-
-## Worked example: setting the DB password six ways
-
-All of these produce the same in-memory value:
-
-| You're running… | …so you set it via |
-|---|---|
-| Docker compose with `.env` | `SARGA_DATABASE_PASSWORD=xyz` in `.env` |
-| Docker compose without `.env` | `environment: { SARGA_DATABASE_PASSWORD: xyz }` in `compose.yaml` *(less safe — checked into git)* |
-| `docker run` directly | `docker run -e SARGA_DATABASE_PASSWORD=xyz ...` |
-| systemd | `Environment=SARGA_DATABASE_PASSWORD=xyz` in the unit, **or** in an `EnvironmentFile=/etc/sarga/sarga.env` (`0600`) |
-| Bare-metal hand-launch | `SARGA_DATABASE_PASSWORD=xyz ./sarga serve` |
-| YAML | `database: { password: xyz }` in `config.yaml` *(works but **not recommended for secrets** — copies end up in git history, backups, support tickets)* |
-
-The first five are env-driven. The last is YAML. **If both are set, env wins.**
 
 ---
 

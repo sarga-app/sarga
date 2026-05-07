@@ -23,14 +23,8 @@ All variables are optional — defaults work for the standard Docker install.
 
 | Variable | Default | Description |
 |---|---|---|
-| `SARGA_DATABASE_HOST` | `postgres` | Postgres hostname. The default matches the service name in our `compose.yaml`. Set to `localhost` for bare-metal installs, or to your external Postgres host. |
-| `SARGA_DATABASE_PORT` | `5432` | Postgres port. |
-| `SARGA_DATABASE_USER` | `sarga` | Postgres role name. |
-| `SARGA_DATABASE_NAME` | `sarga` | Postgres database name. |
-| `SARGA_DATABASE_PASSWORD` | `sarga` | Postgres role password. **Change before exposing publicly.** |
-| `SARGA_DATABASE_SSLMODE` | `disable` | One of `disable`, `allow`, `prefer`, `require`, `verify-ca`, `verify-full`. Use `require` or stronger when reaching Postgres over a network. |
-| `SARGA_DATABASE_MAXCONNS` | `0` | Max pool connections. `0` means auto (`2 × GOMAXPROCS`). |
-| `SARGA_DATABASE_AUTOMIGRATE` | `true` | Apply pending schema migrations on `sarga serve` startup. Set to `false` if you run multiple sarga instances and prefer to apply migrations explicitly via `sarga migrate up` from one of them. |
+| `SARGA_DATABASE_PATH` | _(empty — defaults to `<data-dir>/sarga.db`)_ | Path to the SQLite database file. Leave unset to use the default location inside the data directory. Set explicitly only when you need the database on a separate volume or path. |
+| `SARGA_DATABASE_AUTOMIGRATE` | `true` | Apply pending schema migrations on `sarga serve` startup. Set to `false` to apply migrations explicitly via `sarga migrate up`. |
 
 ## Auth
 
@@ -42,7 +36,7 @@ All variables are optional — defaults work for the standard Docker install.
 
 | Variable | Default | Description |
 |---|---|---|
-| `SARGA_DATA_DIR` | `./data` | Where Sarga keeps its working files: `secrets/` (auto-generated keys), `certs/` (TLS material), `cache/`, `tmp/`. Default is `./data` relative to the working directory you launched Sarga from. For systemd, set to `/var/lib/sarga` and pair with `StateDirectory=sarga`. For Docker, the bundled `compose.yaml` mounts a named volume at `/data` — set `SARGA_DATA_DIR=/data` if you customise the mount. The path is resolved to absolute on startup; relative paths are relative to the process working directory. |
+| `SARGA_DATA_DIR` | `./data` | Where Sarga keeps its working files: `sarga.db` (the database), `secrets/` (auto-generated keys), `certs/` (TLS material), `cache/`, `tmp/`. Default is `./data` relative to the working directory you launched Sarga from. For systemd, set to `/var/lib/sarga` and pair with `StateDirectory=sarga`. For Docker, the bundled `compose.yaml` mounts a named volume at `/data` — set `SARGA_DATA_DIR=/data` if you customise the mount. The path is resolved to absolute on startup; relative paths are relative to the process working directory. |
 
 ---
 
