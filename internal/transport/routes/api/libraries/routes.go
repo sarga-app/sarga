@@ -33,8 +33,9 @@ func Mount(r chi.Router, h *Handler, jwt domauth.JWTConfig) {
 	})
 }
 
-type libraryHandler func(w http.ResponseWriter, r *http.Request, libraryId uuid.UUID)
-type libraryUserHandler func(w http.ResponseWriter, r *http.Request, libraryId uuid.UUID, userId uuid.UUID)
+type libraryHandler func(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID)
+
+type libraryUserHandler func(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID, userID uuid.UUID)
 
 func withLibraryID(fn libraryHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

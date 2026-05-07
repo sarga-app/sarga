@@ -74,14 +74,14 @@ func (h *Handler) CreateLibrary(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusCreated, toGenLibrary(lib))
 }
 
-func (h *Handler) GetLibrary(w http.ResponseWriter, r *http.Request, libraryId uuid.UUID) {
-	lib, err := h.store.GetLibraryByID(r.Context(), libraryId.String())
+func (h *Handler) GetLibrary(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID) {
+	lib, err := h.store.GetLibraryByID(r.Context(), libraryID.String())
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			httpx.WriteError(w, http.StatusNotFound, "not_found", "library not found")
 			return
 		}
-		slog.Error("get library", "library_id", libraryId, "err", err)
+		slog.Error("get library", "library_id", libraryID, "err", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "internal error")
 		return
 	}
@@ -95,7 +95,7 @@ func (h *Handler) GetLibrary(w http.ResponseWriter, r *http.Request, libraryId u
 	httpx.WriteJSON(w, http.StatusOK, toGenLibrary(lib))
 }
 
-func (h *Handler) UpdateLibrary(w http.ResponseWriter, r *http.Request, libraryId uuid.UUID) {
+func (h *Handler) UpdateLibrary(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID) {
 	var req gen.LibraryWrite
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid_request", "malformed request body")
@@ -108,7 +108,7 @@ func (h *Handler) UpdateLibrary(w http.ResponseWriter, r *http.Request, libraryI
 	lib, err := h.store.UpdateLibrary(r.Context(), queries.UpdateLibraryParams{
 		Name: strings.TrimSpace(req.Name),
 		Path: filepath.Clean(req.Path),
-		ID:   libraryId.String(),
+		ID:   libraryID.String(),
 	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -119,24 +119,24 @@ func (h *Handler) UpdateLibrary(w http.ResponseWriter, r *http.Request, libraryI
 			httpx.WriteError(w, http.StatusConflict, "conflict", "library name already exists")
 			return
 		}
-		slog.Error("update library", "library_id", libraryId, "err", err)
+		slog.Error("update library", "library_id", libraryID, "err", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "internal error")
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, toGenLibrary(lib))
 }
 
-func (h *Handler) DeleteLibrary(w http.ResponseWriter, r *http.Request, libraryId uuid.UUID) {
-	if err := h.store.DeleteLibrary(r.Context(), libraryId.String()); err != nil {
-		slog.Error("delete library", "library_id", libraryId, "err", err)
+func (h *Handler) DeleteLibrary(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID) {
+	if err := h.store.DeleteLibrary(r.Context(), libraryID.String()); err != nil {
+		slog.Error("delete library", "library_id", libraryID, "err", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "internal error")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) ListLibraryMembers(w http.ResponseWriter, r *http.Request, libraryId uuid.UUID) {
-	if _, err := h.store.GetLibraryByID(r.Context(), libraryId.String()); err != nil {
+func (h *Handler) ListLibraryMembers(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID) {
+	if _, err := h.store.GetLibraryByID(r.Context(), libraryID.String()); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			httpx.WriteError(w, http.StatusNotFound, "not_found", "library not found")
 			return
@@ -145,9 +145,9 @@ func (h *Handler) ListLibraryMembers(w http.ResponseWriter, r *http.Request, lib
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "internal error")
 		return
 	}
-	rows, err := h.store.ListLibraryMembers(r.Context(), libraryId.String())
+	rows, err := h.store.ListLibraryMembers(r.Context(), libraryID.String())
 	if err != nil {
-		slog.Error("list library members", "library_id", libraryId, "err", err)
+		slog.Error("list library members", "library_id", libraryID, "err", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "internal error")
 		return
 	}
@@ -165,8 +165,8 @@ func (h *Handler) ListLibraryMembers(w http.ResponseWriter, r *http.Request, lib
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"members": out})
 }
 
-func (h *Handler) GrantLibraryAccess(w http.ResponseWriter, r *http.Request, libraryId uuid.UUID) {
-	if _, err := h.store.GetLibraryByID(r.Context(), libraryId.String()); err != nil {
+func (h *Handler) GrantLibraryAccess(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID) {
+	if _, err := h.store.GetLibraryByID(r.Context(), libraryID.String()); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			httpx.WriteError(w, http.StatusNotFound, "not_found", "library not found")
 			return
@@ -190,23 +190,23 @@ func (h *Handler) GrantLibraryAccess(w http.ResponseWriter, r *http.Request, lib
 		return
 	}
 	if err := h.store.GrantLibraryAccess(r.Context(), queries.GrantLibraryAccessParams{
-		LibraryID: libraryId.String(),
+		LibraryID: libraryID.String(),
 		UserID:    req.UserId.String(),
 		Role:      role,
 	}); err != nil {
-		slog.Error("grant library access", "library_id", libraryId, "user_id", req.UserId, "err", err)
+		slog.Error("grant library access", "library_id", libraryID, "user_id", req.UserId, "err", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "internal error")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) RevokeLibraryAccess(w http.ResponseWriter, r *http.Request, libraryId uuid.UUID, userId uuid.UUID) {
+func (h *Handler) RevokeLibraryAccess(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID, userID uuid.UUID) {
 	if err := h.store.RevokeLibraryAccess(r.Context(), queries.RevokeLibraryAccessParams{
-		LibraryID: libraryId.String(),
-		UserID:    userId.String(),
+		LibraryID: libraryID.String(),
+		UserID:    userID.String(),
 	}); err != nil {
-		slog.Error("revoke library access", "library_id", libraryId, "user_id", userId, "err", err)
+		slog.Error("revoke library access", "library_id", libraryID, "user_id", userID, "err", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "internal error")
 		return
 	}
@@ -246,6 +246,9 @@ func toGenLibrary(l queries.Library) gen.Library {
 }
 
 func parseTime(s string) time.Time {
-	t, _ := time.Parse(time.RFC3339, s)
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return time.Time{}
+	}
 	return t
 }

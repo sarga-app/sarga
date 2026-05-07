@@ -21,7 +21,7 @@ type MasterKey [keySize]byte
 // LoadOrGenerate reads the 32-byte master key at path, or generates and persists
 // one if the file does not exist.
 func LoadOrGenerate(path string) (*MasterKey, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // path is constructed by datadir, not user input
 	if errors.Is(err, fs.ErrNotExist) {
 		return generate(path)
 	}

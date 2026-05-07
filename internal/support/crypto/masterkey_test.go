@@ -9,6 +9,7 @@ import (
 )
 
 func TestLoadOrGenerate_createsFileOnFirstCall(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "master.key")
 
 	k, err := crypto.LoadOrGenerate(path)
@@ -29,6 +30,7 @@ func TestLoadOrGenerate_createsFileOnFirstCall(t *testing.T) {
 }
 
 func TestLoadOrGenerate_roundtrip(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "master.key")
 
 	k1, err := crypto.LoadOrGenerate(path)
@@ -45,6 +47,7 @@ func TestLoadOrGenerate_roundtrip(t *testing.T) {
 }
 
 func TestLoadOrGenerate_rejectsBadLength(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "master.key")
 	if err := os.WriteFile(path, []byte("tooshort"), 0o600); err != nil {
 		t.Fatal(err)
@@ -55,6 +58,7 @@ func TestLoadOrGenerate_rejectsBadLength(t *testing.T) {
 }
 
 func TestMasterKey_Derive_deterministic(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "master.key")
 	k, _ := crypto.LoadOrGenerate(path)
 
@@ -69,6 +73,7 @@ func TestMasterKey_Derive_deterministic(t *testing.T) {
 }
 
 func TestMasterKey_Derive_isolatedByPurpose(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "master.key")
 	k, _ := crypto.LoadOrGenerate(path)
 
@@ -80,6 +85,7 @@ func TestMasterKey_Derive_isolatedByPurpose(t *testing.T) {
 }
 
 func TestMasterKey_Derive_emptyPurposeErrors(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "master.key")
 	k, _ := crypto.LoadOrGenerate(path)
 

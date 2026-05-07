@@ -62,7 +62,7 @@ func runCreateUser(cmd *cobra.Command, _ []string) error {
 	defer cancel()
 
 	dbPath := dbPathFromConfig(cfg)
-	if err := db.MigrateUp(ctx, dbPath); err != nil {
+	if err = db.MigrateUp(ctx, dbPath); err != nil {
 		return fmt.Errorf("migrate: %w", err)
 	}
 
