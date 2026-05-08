@@ -71,6 +71,7 @@ fmt-check: ## CI: fail if any Go file needs formatting
 	fi
 
 vet: ## Run go vet ./...
+	@mkdir -p internal/transport/routes/web/dist
 	@$(GO) vet ./...
 
 lint: ## Run golangci-lint (~25 linters)
