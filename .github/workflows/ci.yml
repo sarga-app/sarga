@@ -29,7 +29,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GO_VERSION: "1.26.2"
+  GO_VERSION: "1.26.3"
 
 jobs:
   ci:
@@ -46,6 +46,18 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           check-latest: false
           cache: true
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
 
       - name: Cache Go tool binaries
         id: cache-gotools
@@ -67,12 +79,10 @@ jobs:
         with:
           sqlc-version: '1.31.1'
 
-      - name: Cache vendored assets and npm
+      - name: Cache vendored assets
         uses: actions/cache@v5
         with:
-          path: |
-            internal/transport/routes/api/docs/scalar-standalone.js
-            ~/.npm
+          path: internal/transport/routes/api/docs/scalar-standalone.js
           key: vendor-${{ runner.os }}-${{ hashFiles('Makefile') }}-redocly
 
       - name: Vendor third-party assets
@@ -135,31 +145,15 @@ jobs:
 
       - name: Smoke test container
         run: |
-          docker network create sarga-ci-net
-          docker run -d --name sarga-pg --network sarga-ci-net \
-            -e POSTGRES_USER=sarga -e POSTGRES_PASSWORD=sarga -e POSTGRES_DB=sarga \
-            --health-cmd="pg_isready -U sarga -d sarga" --health-interval=2s \
-            --health-timeout=2s --health-retries=15 \
-            postgres:17.2-alpine
-          for i in {1..30}; do
-            status=$(docker inspect --format='{{.State.Health.Status}}' sarga-pg)
-            if [ "$status" = "healthy" ]; then break; fi
-            if [ $i -eq 30 ]; then
-              echo "postgres never became healthy"; docker logs sarga-pg; exit 1
-            fi
-            sleep 1
-          done
           docker volume create sarga-ci-data
-          docker run -d --name sarga-ci --network sarga-ci-net -p 8080:8080 \
+          docker run -d --name sarga-ci -p 8080:8080 \
             -v sarga-ci-data:/data \
-            -e SARGA_DATABASE_HOST=sarga-pg \
             sarga:ci serve
-          for i in {1..10}; do
+          for i in {1..15}; do
             if curl -sf http://localhost:8080/healthz > /dev/null; then
-              echo "healthz OK"
-              break
+              echo "healthz OK"; break
             fi
-            if [ $i -eq 10 ]; then
+            if [ $i -eq 15 ]; then
               echo "healthz never came up"
               docker logs sarga-ci
               exit 1
@@ -167,7 +161,6 @@ jobs:
             sleep 1
           done
           docker exec sarga-ci sarga healthcheck
-          docker stop sarga-ci sarga-pg
-          docker rm sarga-ci sarga-pg
+          docker stop sarga-ci
+          docker rm sarga-ci
           docker volume rm sarga-ci-data
-          docker network rm sarga-ci-net
