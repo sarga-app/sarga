@@ -1,7 +1,16 @@
 # syntax=docker/dockerfile:1.7
 
-# ─── build stage ────────────────────────────────────────────────────────────
-FROM golang:1.26.2-alpine AS build
+# ─── frontend build ──────────────────────────────────────────────────────────
+FROM node:22-alpine AS frontend
+
+WORKDIR /src
+COPY web/ web/
+RUN mkdir -p internal/transport/routes/web/dist && \
+    npm install --prefix web && \
+    npm run build --prefix web
+
+# ─── backend build ───────────────────────────────────────────────────────────
+FROM golang:1.26.3-alpine AS build
 
 WORKDIR /src
 
@@ -18,6 +27,10 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 COPY . .
 
+# Overwrite placeholder with the real frontend build
+COPY --from=frontend /src/internal/transport/routes/web/dist/ \
+    internal/transport/routes/web/dist/
+
 # Fetch vendored assets (Scalar API reference bundle) into the embed path.
 RUN make vendor
 
@@ -31,7 +44,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
         -o /out/sarga \
         ./cmd/sarga
 
-# ─── runtime stage ──────────────────────────────────────────────────────────
+# ─── runtime stage ───────────────────────────────────────────────────────────
 FROM alpine:3.23.4
 
 # Runtime deps:
