@@ -162,15 +162,16 @@ export function LoginPage() {
             style={{
               marginTop: 'var(--s-1)',
               height: 44,
-              background: isPending ? 'var(--ink-2)' : 'var(--ink-1)',
-              color: 'var(--paper-0)',
+              background: 'var(--fg-1)',
+              color: 'var(--bg)',
               border: 'none',
               borderRadius: 'var(--r-input)',
               fontFamily: 'var(--font-ui)',
               fontSize: 15,
               fontWeight: 600,
               cursor: isPending ? 'not-allowed' : 'pointer',
-              transition: 'background var(--dur-micro) var(--ease)',
+              opacity: isPending ? 0.6 : 1,
+              transition: 'opacity var(--dur-micro) var(--ease)',
               letterSpacing: '-0.01em',
             }}
           >
