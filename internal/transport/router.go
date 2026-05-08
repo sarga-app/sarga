@@ -10,6 +10,7 @@ import (
 	"github.com/sarga-app/sarga/internal/transport/middleware"
 	"github.com/sarga-app/sarga/internal/transport/routes/api"
 	"github.com/sarga-app/sarga/internal/transport/routes/health"
+	"github.com/sarga-app/sarga/internal/transport/routes/web"
 )
 
 const requestTimeout = 60 * time.Second
@@ -26,6 +27,7 @@ func newRouter(d Deps) http.Handler {
 
 	health.Mount(r, d.DB)
 	api.Mount(r, d.API)
+	web.Mount(r)
 
 	return r
 }

@@ -32,7 +32,10 @@ $(SCALAR_BUNDLE): ## Download the pinned Scalar API reference bundle
 	@echo "fetching scalar@$(SCALAR_VERSION)"
 	@curl -sSLf -o $@ "https://cdn.jsdelivr.net/npm/@scalar/api-reference@$(SCALAR_VERSION)/dist/browser/standalone.js"
 
-build: $(SCALAR_BUNDLE) ## Build the sarga binary (version injected from git describe)
+web-build: ## Build the React frontend into internal/transport/routes/web/dist/
+	@cd web && npm run build
+
+build: $(SCALAR_BUNDLE) web-build ## Build the sarga binary (version injected from git describe)
 	@$(GO) build $(GOFLAGS) -o $(BIN) $(PKG)
 
 run: build ## Build and run `sarga serve`
@@ -109,4 +112,4 @@ tools: ## Install dev tools (golangci-lint, govulncheck, goimports)
 
 ci: tidy-check fmt-check vet lint test vuln sqlc-check api-check build ## Run the full CI bundle locally
 
-.PHONY: help build run test fmt fmt-check vet lint vuln tidy tidy-check sqlc sqlc-check api-lint api-gen api-check docker clean tools ci vendor
+.PHONY: help build web-build run test fmt fmt-check vet lint vuln tidy tidy-check sqlc sqlc-check api-lint api-gen api-check docker clean tools ci vendor
