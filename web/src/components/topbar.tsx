@@ -1,8 +1,29 @@
-import { Moon, Search, Sun } from 'lucide-react'
+import { LogOut, Moon, Search, Sun } from 'lucide-react'
 import { useUIStore } from '@/stores/ui-store'
+import { useAuthStore } from '@/features/auth/auth-store'
+import { useLogout } from '@/features/auth/use-logout'
+
+const iconBtnStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 32,
+  height: 32,
+  flexShrink: 0,
+  borderRadius: 'var(--r-input)',
+  border: '1px solid var(--border)',
+  background: 'transparent',
+  color: 'var(--fg-3)',
+  cursor: 'pointer',
+  transition: 'color var(--dur-micro) var(--ease)',
+}
 
 export function Topbar() {
   const { theme, toggleTheme } = useUIStore()
+  const user = useAuthStore((s) => s.user)
+  const { mutate: doLogout, isPending } = useLogout()
+
+  const initial = user?.username?.[0]?.toUpperCase() ?? '?'
 
   return (
     <header
@@ -55,24 +76,44 @@ export function Topbar() {
       <button
         onClick={toggleTheme}
         aria-label={theme === 'nocturne' ? 'Switch to light mode' : 'Switch to dark mode'}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 32,
-          height: 32,
-          flexShrink: 0,
-          borderRadius: 'var(--r-input)',
-          border: '1px solid var(--border)',
-          background: 'transparent',
-          color: 'var(--fg-3)',
-          cursor: 'pointer',
-          transition: 'color var(--dur-micro) var(--ease)',
-        }}
+        style={iconBtnStyle}
       >
         {theme === 'nocturne'
           ? <Sun size={15} strokeWidth={1.5} />
           : <Moon size={15} strokeWidth={1.5} />}
+      </button>
+
+      {/* User avatar */}
+      <div
+        title={user?.username}
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: '50%',
+          background: 'var(--bg-3)',
+          color: 'var(--fg-2)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontFamily: 'var(--font-mono)',
+          fontSize: 11,
+          fontWeight: 500,
+          flexShrink: 0,
+          userSelect: 'none',
+        }}
+      >
+        {initial}
+      </div>
+
+      {/* Logout */}
+      <button
+        onClick={() => doLogout()}
+        disabled={isPending}
+        aria-label="Sign out"
+        title="Sign out"
+        style={{ ...iconBtnStyle, border: 'none' }}
+      >
+        <LogOut size={15} strokeWidth={1.5} />
       </button>
     </header>
   )

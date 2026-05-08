@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { Library } from 'lucide-react'
+import { LogoWordmark } from '@/assets/LogoWordmark'
 
 const NAV = [
   { to: '/library', label: 'Library', Icon: Library },
@@ -34,18 +35,8 @@ export function Sidebar() {
         paddingBottom: 'calc(76px + 16px + 16px)',
       }}
     >
-      <div style={{ padding: '20px var(--s-5) var(--s-4)' }}>
-        <span
-          className="sarga-bar"
-          style={{
-            fontFamily: 'var(--font-editorial)',
-            fontSize: 26,
-            fontWeight: 500,
-            color: 'var(--fg-1)',
-          }}
-        >
-          sarga
-        </span>
+      <div style={{ padding: '18px var(--s-5) var(--s-4)' }}>
+        <LogoWordmark height={24} />
       </div>
 
       <nav style={{ flex: 1, padding: '0 var(--s-3)' }}>
