@@ -16,39 +16,47 @@ SQLC        ?= sqlc
 
 .DEFAULT_GOAL := help
 
-## ──────────────── targets ────────────────
-
-help: ## Show this help
-	@awk 'BEGIN { FS = ":.*?## "; printf "\n  Usage: make <target>\n\n  Targets:\n" } \
-	      /^[a-zA-Z_-]+:.*?## / { printf "    \033[36m%-14s\033[0m %s\n", $$1, $$2 } \
-	      END { print "" }' $(MAKEFILE_LIST)
-
 SCALAR_VERSION := 1.35.5
 SCALAR_BUNDLE  := internal/transport/routes/api/docs/scalar-standalone.js
 
-vendor: $(SCALAR_BUNDLE) ## Fetch all vendored third-party assets
+# ── Help ──────────────────────────────────────────────────────────────────────
 
-$(SCALAR_BUNDLE): ## Download the pinned Scalar API reference bundle
+help: ## Show this help
+	@awk ' \
+	  BEGIN { FS = ":.*?## "; printf "\n  Usage: make <target>\n" } \
+	  /^## ──/ { printf "\n  %s\n", substr($$0, 4) } \
+	  /^[a-zA-Z_-]+:.*?## / { printf "    \033[36m%-16s\033[0m %s\n", $$1, $$2 } \
+	  END { print "" }' $(MAKEFILE_LIST)
+
+# ── Build ─────────────────────────────────────────────────────────────────────
+## ── Build ─────────────────────────────────────────────────────────────────────
+
+vendor: $(SCALAR_BUNDLE) ## Fetch vendored third-party assets (Scalar API docs bundle)
+
+$(SCALAR_BUNDLE):
 	@echo "fetching scalar@$(SCALAR_VERSION)"
 	@curl -sSLf -o $@ "https://cdn.jsdelivr.net/npm/@scalar/api-reference@$(SCALAR_VERSION)/dist/browser/standalone.js"
 
-web-build: ## Build the React frontend into internal/transport/routes/web/dist/
+web-build: ## Build React frontend → internal/transport/routes/web/dist/
 	@cd web && pnpm install --frozen-lockfile && pnpm build
 
-build: $(SCALAR_BUNDLE) web-build ## Build the sarga binary (version injected from git describe)
+build: $(SCALAR_BUNDLE) web-build ## Build the sarga binary (full: vendor + frontend + go)
 	@$(GO) build $(GOFLAGS) -o $(BIN) $(PKG)
 
-run: build ## Build and run `sarga serve`
+run: build ## Build then run sarga serve
 	@./$(BIN) serve
 
-test: ## Run all tests with race detector
-	@$(GO) test -race -count=1 ./...
+clean: ## Remove built binary
+	@rm -f $(BIN)
 
-fmt: ## Format code (gofmt + goimports)
+# ── Go quality ────────────────────────────────────────────────────────────────
+## ── Go quality ────────────────────────────────────────────────────────────────
+
+fmt: ## Format Go files (gofmt + goimports)
 	@$(GOIMPORTS) -w -local github.com/sarga-app/sarga .
 	@gofmt -w .
 
-fmt-check: ## Fail if formatting is needed
+fmt-check: ## CI: fail if any Go file needs formatting
 	@diff=$$(gofmt -l . ; $(GOIMPORTS) -l -local github.com/sarga-app/sarga .); \
 	if [ -n "$$diff" ]; then \
 	  echo "the following files need formatting (run 'make fmt'):"; \
@@ -56,39 +64,16 @@ fmt-check: ## Fail if formatting is needed
 	  exit 1; \
 	fi
 
-vet: ## Run go vet
+vet: ## Run go vet ./...
 	@$(GO) vet ./...
 
-lint: ## Run golangci-lint (install via `make tools`)
+lint: ## Run golangci-lint (~25 linters)
 	@$(GOLANGCI) run ./...
-
-vuln: ## Run govulncheck (install via `make tools`)
-	@$(GOVULNCHECK) ./...
-
-sqlc: ## Regenerate sqlc Go code from migrations + queries
-	@$(SQLC) generate
-
-sqlc-check: ## Fail if generated sqlc code is out of date
-	@$(SQLC) diff
-
-api-lint: ## Lint the OpenAPI spec with Redocly CLI (uses npx)
-	@npx -y @redocly/cli@latest lint --config api/redocly.yaml
-
-api-gen: ## Regenerate Go code from api/openapi.yaml (oapi-codegen)
-	@$(GO) tool oapi-codegen -config api/oapi-codegen.yaml api/openapi.yaml
-
-api-check: ## Fail if api/gen is out of date with api/openapi.yaml
-	@$(GO) tool oapi-codegen -config api/oapi-codegen.yaml api/openapi.yaml
-	@if ! git diff --quiet -- internal/transport/routes/api/gen; then \
-	  echo "api gen out of date — run 'make api-gen' and commit the result"; \
-	  git --no-pager diff --stat -- internal/transport/routes/api/gen; \
-	  exit 1; \
-	fi
 
 tidy: ## Tidy go.mod / go.sum
 	@$(GO) mod tidy
 
-tidy-check: ## Fail if `go mod tidy` would change anything
+tidy-check: ## CI: fail if go.mod / go.sum are not tidy
 	@cp go.mod go.mod.bak; cp go.sum go.sum.bak; \
 	$(GO) mod tidy; \
 	if ! diff -q go.mod go.mod.bak >/dev/null || ! diff -q go.sum go.sum.bak >/dev/null; then \
@@ -98,18 +83,58 @@ tidy-check: ## Fail if `go mod tidy` would change anything
 	fi; \
 	rm go.mod.bak go.sum.bak
 
-docker: ## Build the Docker image as sarga:dev
+vuln: ## Run govulncheck (CVE scan on dependencies)
+	@$(GOVULNCHECK) ./...
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+## ── Testing ───────────────────────────────────────────────────────────────────
+
+test: ## Run all Go tests with race detector
+	@$(GO) test -race -count=1 ./...
+
+# ── Code generation ───────────────────────────────────────────────────────────
+## ── Code generation ───────────────────────────────────────────────────────────
+
+api-gen: ## Regenerate internal/transport/routes/api/gen/ from api/openapi.yaml
+	@$(GO) tool oapi-codegen -config api/oapi-codegen.yaml api/openapi.yaml
+
+api-check: ## CI: fail if api/gen is out of date with api/openapi.yaml
+	@$(GO) tool oapi-codegen -config api/oapi-codegen.yaml api/openapi.yaml
+	@if ! git diff --quiet -- internal/transport/routes/api/gen; then \
+	  echo "api gen out of date — run 'make api-gen' and commit the result"; \
+	  git --no-pager diff --stat -- internal/transport/routes/api/gen; \
+	  exit 1; \
+	fi
+
+api-lint: ## Lint api/openapi.yaml with Redocly CLI
+	@npx -y @redocly/cli@latest lint --config api/redocly.yaml
+
+sqlc: ## Regenerate internal/support/db/ from SQL queries + migrations
+	@$(SQLC) generate
+
+sqlc-check: ## CI: fail if sqlc output is out of date
+	@$(SQLC) diff
+
+# ── Docker & CI ───────────────────────────────────────────────────────────────
+## ── Docker & CI ───────────────────────────────────────────────────────────────
+
+docker: ## Build Docker image tagged sarga:dev
 	@docker build --build-arg VERSION=$(VERSION) -t sarga:dev .
 
-clean: ## Remove built binary
-	@rm -f $(BIN)
+ci: tidy-check fmt-check vet lint test vuln sqlc-check api-check build ## Run the full CI suite locally
 
-tools: ## Install dev tools (golangci-lint, govulncheck, goimports)
+# ── Setup ─────────────────────────────────────────────────────────────────────
+## ── Setup ─────────────────────────────────────────────────────────────────────
+
+tools: ## Install Go dev tools (golangci-lint, govulncheck, goimports)
 	@$(GO) install golang.org/x/tools/cmd/goimports@latest
 	@$(GO) install golang.org/x/vuln/cmd/govulncheck@latest
 	@$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	@echo "ensure $$($(GO) env GOPATH)/bin is on your PATH"
 
-ci: tidy-check fmt-check vet lint test vuln sqlc-check api-check build ## Run the full CI bundle locally
-
-.PHONY: help build web-build run test fmt fmt-check vet lint vuln tidy tidy-check sqlc sqlc-check api-lint api-gen api-check docker clean tools ci vendor
+.PHONY: help vendor web-build build run clean \
+        fmt fmt-check vet lint tidy tidy-check vuln \
+        test \
+        api-gen api-check api-lint sqlc sqlc-check \
+        docker ci \
+        tools
