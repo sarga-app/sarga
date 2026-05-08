@@ -7,7 +7,7 @@ run:
   timeout: 5m
   tests: true
   exclude-dirs:
-    - web/node_modules
+    - node_modules
 
 linters:
   default: none
@@ -142,6 +142,14 @@ linters:
       - linters:
           - govet
         text: "printf"
+
+      - path: web/node_modules
+        linters:
+          - errcheck
+          - exhaustive
+          - gocritic
+          - govet
+          - nilnil
 
 formatters:
   enable:
