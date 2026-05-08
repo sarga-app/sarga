@@ -77,20 +77,20 @@ func (h *Handler) CreateLibrary(w http.ResponseWriter, r *http.Request) {
 	libID := uuid.NewString()
 
 	lib, err := h.tx(ctx, func(q *queries.Queries) (queries.Library, error) {
-		l, err := q.CreateLibrary(ctx, queries.CreateLibraryParams{
+		l, e := q.CreateLibrary(ctx, queries.CreateLibraryParams{
 			ID:   libID,
 			Name: strings.TrimSpace(req.Name),
 		})
-		if err != nil {
-			return queries.Library{}, err
+		if e != nil {
+			return queries.Library{}, e
 		}
 		for _, p := range cleanPaths {
-			if _, err := q.AddLibraryPath(ctx, queries.AddLibraryPathParams{
+			if _, e := q.AddLibraryPath(ctx, queries.AddLibraryPathParams{
 				ID:        uuid.NewString(),
 				LibraryID: libID,
 				Path:      p,
-			}); err != nil {
-				return queries.Library{}, err
+			}); e != nil {
+				return queries.Library{}, e
 			}
 		}
 		return l, nil
@@ -124,10 +124,10 @@ func (h *Handler) GetLibrary(w http.ResponseWriter, r *http.Request, libraryID u
 	}
 	if !domauth.IsAdminFrom(ctx) {
 		uid, _ := domauth.UserIDFrom(ctx)
-		if _, err := q.GetLibraryAccess(ctx, queries.GetLibraryAccessParams{
+		if _, accessErr := q.GetLibraryAccess(ctx, queries.GetLibraryAccessParams{
 			LibraryID: lib.ID,
 			UserID:    uid.String(),
-		}); err != nil {
+		}); accessErr != nil {
 			httpx.WriteError(w, http.StatusForbidden, "forbidden", "no access to this library")
 			return
 		}
@@ -156,23 +156,23 @@ func (h *Handler) UpdateLibrary(w http.ResponseWriter, r *http.Request, libraryI
 
 	ctx := r.Context()
 	lib, err := h.tx(ctx, func(q *queries.Queries) (queries.Library, error) {
-		l, err := q.UpdateLibrary(ctx, queries.UpdateLibraryParams{
+		l, e := q.UpdateLibrary(ctx, queries.UpdateLibraryParams{
 			ID:   libraryID.String(),
 			Name: strings.TrimSpace(req.Name),
 		})
-		if err != nil {
-			return queries.Library{}, err
+		if e != nil {
+			return queries.Library{}, e
 		}
-		if err := q.ClearLibraryPaths(ctx, l.ID); err != nil {
-			return queries.Library{}, err
+		if e := q.ClearLibraryPaths(ctx, l.ID); e != nil {
+			return queries.Library{}, e
 		}
 		for _, p := range cleanPaths {
-			if _, err := q.AddLibraryPath(ctx, queries.AddLibraryPathParams{
+			if _, e := q.AddLibraryPath(ctx, queries.AddLibraryPathParams{
 				ID:        uuid.NewString(),
 				LibraryID: l.ID,
 				Path:      p,
-			}); err != nil {
-				return queries.Library{}, err
+			}); e != nil {
+				return queries.Library{}, e
 			}
 		}
 		return l, nil
@@ -274,7 +274,7 @@ func (h *Handler) GrantLibraryAccess(w http.ResponseWriter, r *http.Request, lib
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) RevokeLibraryAccess(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID, userID uuid.UUID) {
+func (h *Handler) RevokeLibraryAccess(w http.ResponseWriter, r *http.Request, libraryID, userID uuid.UUID) {
 	q := queries.New(h.db.Write())
 	if err := q.RevokeLibraryAccess(r.Context(), queries.RevokeLibraryAccessParams{
 		LibraryID: libraryID.String(),
@@ -369,7 +369,13 @@ func toGenLibrary(l queries.Library, paths []string) gen.Library {
 	}
 }
 
+// parseTime returns the parsed RFC3339 time, or the zero time on a parse
+// failure (treats "couldn't read it" as "earliest possible" so any time-
+// based gating downstream fires rather than silently passes).
 func parseTime(s string) time.Time {
-	t, _ := time.Parse(time.RFC3339, s)
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return time.Time{}
+	}
 	return t
 }
