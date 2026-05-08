@@ -46,7 +46,10 @@ web-types: ## Regenerate web/src/types/api.d.ts from api/openapi.yaml
 build: $(SCALAR_BUNDLE) web-build ## Build the sarga binary (full: vendor + frontend + go)
 	@$(GO) build $(GOFLAGS) -o $(BIN) $(PKG)
 
-run: build ## Build then run sarga serve
+build-go: $(SCALAR_BUNDLE) ## Build Go binary only — skips frontend rebuild (fast, for dev)
+	@$(GO) build $(GOFLAGS) -o $(BIN) $(PKG)
+
+run: build-go ## Build Go binary and run sarga serve (frontend served by pnpm dev)
 	@./$(BIN) serve
 
 clean: ## Remove built binary
