@@ -40,6 +40,9 @@ $(SCALAR_BUNDLE):
 web-build: ## Build React frontend → internal/transport/routes/web/dist/
 	@cd web && pnpm install --frozen-lockfile && pnpm build
 
+web-types: ## Regenerate web/src/types/api.d.ts from api/openapi.yaml
+	@cd web && pnpm run types
+
 build: $(SCALAR_BUNDLE) web-build ## Build the sarga binary (full: vendor + frontend + go)
 	@$(GO) build $(GOFLAGS) -o $(BIN) $(PKG)
 
@@ -132,7 +135,7 @@ tools: ## Install Go dev tools (golangci-lint, govulncheck, goimports)
 	@$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	@echo "ensure $$($(GO) env GOPATH)/bin is on your PATH"
 
-.PHONY: help vendor web-build build run clean \
+.PHONY: help vendor web-build web-types build run clean \
         fmt fmt-check vet lint tidy tidy-check vuln \
         test \
         api-gen api-check api-lint sqlc sqlc-check \
