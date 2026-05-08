@@ -8,7 +8,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /src
 COPY web/ web/
 RUN mkdir -p internal/transport/routes/web/dist && \
-    cd web && pnpm install --frozen-lockfile && pnpm build
+    cd web && pnpm install --frozen-lockfile --ignore-scripts && pnpm build
 
 # ─── backend build ───────────────────────────────────────────────────────────
 FROM golang:1.26.3-alpine AS build
