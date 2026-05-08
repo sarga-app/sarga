@@ -11,6 +11,14 @@ export async function login(username: string, password: string) {
   return data
 }
 
+export async function me(accessToken: string) {
+  const { data, error } = await api.GET('/me', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (error) throw new Error('Failed to fetch user identity')
+  return data
+}
+
 export async function logout() {
   await api.POST('/auth/logout', {})
 }
