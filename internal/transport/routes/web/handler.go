@@ -16,7 +16,10 @@ type handler struct {
 }
 
 func newHandler() *handler {
-	sub, _ := fs.Sub(dist, "dist") // cannot fail — dist/ is guaranteed by embed
+	sub, err := fs.Sub(dist, "dist")
+	if err != nil {
+		panic("web: embed invariant violated: " + err.Error())
+	}
 	return &handler{
 		fileServer: http.FileServer(http.FS(sub)),
 		root:       sub,
