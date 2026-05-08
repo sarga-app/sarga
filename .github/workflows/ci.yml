@@ -93,7 +93,7 @@ jobs:
           make tidy-check
           make sqlc-check
           make api-check
-          npx -y @redocly/cli@latest lint --config api/redocly.yaml
+          make api-lint
 
       - name: Format and vet
         run: |
@@ -110,7 +110,7 @@ jobs:
         run: make test
 
       - name: Vulnerability check
-        run: govulncheck ./...
+        run: make vuln
 
       - name: Build and smoke test binary
         run: |
