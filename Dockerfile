@@ -3,11 +3,12 @@
 # ─── frontend build ──────────────────────────────────────────────────────────
 FROM node:22-alpine AS frontend
 
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 WORKDIR /src
 COPY web/ web/
 RUN mkdir -p internal/transport/routes/web/dist && \
-    npm install --prefix web && \
-    npm run build --prefix web
+    cd web && pnpm install --frozen-lockfile && pnpm build
 
 # ─── backend build ───────────────────────────────────────────────────────────
 FROM golang:1.26.3-alpine AS build

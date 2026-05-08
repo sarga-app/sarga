@@ -1,6 +1,9 @@
-import { Search } from 'lucide-react'
+import { Moon, Search, Sun } from 'lucide-react'
+import { useUIStore } from '@/stores/ui-store'
 
 export function Topbar() {
+  const { theme, toggleTheme } = useUIStore()
+
   return (
     <header
       style={{
@@ -16,6 +19,7 @@ export function Topbar() {
         gap: 'var(--s-3)',
       }}
     >
+      {/* Search */}
       <div
         style={{
           flex: 1,
@@ -46,6 +50,30 @@ export function Topbar() {
           }}
         />
       </div>
+
+      {/* Theme toggle */}
+      <button
+        onClick={toggleTheme}
+        aria-label={theme === 'nocturne' ? 'Switch to light mode' : 'Switch to dark mode'}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 32,
+          height: 32,
+          flexShrink: 0,
+          borderRadius: 'var(--r-input)',
+          border: '1px solid var(--border)',
+          background: 'transparent',
+          color: 'var(--fg-3)',
+          cursor: 'pointer',
+          transition: 'color var(--dur-micro) var(--ease)',
+        }}
+      >
+        {theme === 'nocturne'
+          ? <Sun size={15} strokeWidth={1.5} />
+          : <Moon size={15} strokeWidth={1.5} />}
+      </button>
     </header>
   )
 }

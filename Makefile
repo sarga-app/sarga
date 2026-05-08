@@ -33,7 +33,7 @@ $(SCALAR_BUNDLE): ## Download the pinned Scalar API reference bundle
 	@curl -sSLf -o $@ "https://cdn.jsdelivr.net/npm/@scalar/api-reference@$(SCALAR_VERSION)/dist/browser/standalone.js"
 
 web-build: ## Build the React frontend into internal/transport/routes/web/dist/
-	@cd web && npm run build
+	@cd web && pnpm build
 
 build: $(SCALAR_BUNDLE) web-build ## Build the sarga binary (version injected from git describe)
 	@$(GO) build $(GOFLAGS) -o $(BIN) $(PKG)
