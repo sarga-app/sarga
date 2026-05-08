@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from 'react'
+import { LogoWordmark } from '@/assets/LogoWordmark'
 import { useLogin } from './use-login'
 
 export function LoginPage() {
@@ -19,20 +20,7 @@ export function LoginPage() {
     >
       {/* Brand */}
       <div className="mb-8 text-center select-none">
-        <p
-          className="sarga-bar"
-          style={{
-            fontFamily: 'var(--font-editorial)',
-            fontSize: 'clamp(30px, 6vw, 40px)',
-            fontWeight: 500,
-            color: 'var(--fg-1)',
-            letterSpacing: '-0.015em',
-            margin: 0,
-            lineHeight: 1,
-          }}
-        >
-          sarga
-        </p>
+        <LogoWordmark height={36} />
         <p
           style={{
             fontFamily: 'var(--font-mono)',
