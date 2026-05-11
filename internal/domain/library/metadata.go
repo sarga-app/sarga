@@ -184,19 +184,7 @@ func Extract(path string) (Metadata, error) {
 		}
 	}
 	if md.DurationMs == 0 {
-		if s := rawString(raw, "DURATION", "duration"); s != "" {
-			if f, err := strconv.ParseFloat(strings.TrimSpace(s), 64); err == nil && f > 0 {
-				// Vorbis DURATION is *supposed* to be seconds, but some encoders
-				// (notably Spotify-derived FLACs) write it in milliseconds.
-				// 24h = 86400s — anything larger must already be ms.
-				const maxReasonableSeconds = float64(24 * 60 * 60)
-				if f > maxReasonableSeconds {
-					md.DurationMs = int64(f)
-				} else {
-					md.DurationMs = int64(f * 1000)
-				}
-			}
-		}
+		md.DurationMs = parseVorbisDuration(rawString(raw, "DURATION", "duration"))
 	}
 	if md.DurationMs == 0 {
 		if v, ok := rawAny(raw, "LENGTH", "length"); ok {
@@ -320,6 +308,24 @@ func parseIntVal(v any) int {
 		return n
 	}
 	return 0
+}
+
+// parseVorbisDuration handles Vorbis DURATION tags, which should be seconds but
+// some encoders (Spotify-derived FLACs) write milliseconds instead.
+// Anything over 24 h in seconds must already be in ms.
+func parseVorbisDuration(s string) int64 {
+	if s == "" {
+		return 0
+	}
+	f, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
+	if err != nil || f <= 0 {
+		return 0
+	}
+	const maxReasonableSeconds = float64(24 * 60 * 60)
+	if f > maxReasonableSeconds {
+		return int64(f)
+	}
+	return int64(f * 1000)
 }
 
 func parseReplayGain(s string) float64 {
