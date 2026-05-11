@@ -36,9 +36,13 @@ func (w *Watcher) Watch(root string) error {
 }
 
 func (w *Watcher) Run(ctx context.Context, pathToLibrary map[string]string) {
+	slog.Info("watcher: started", "paths", len(pathToLibrary))
 	ticker := time.NewTicker(debounceWindow / 2)
 	defer ticker.Stop()
-	defer func() { w.watcher.Close() }() //nolint:errcheck
+	defer func() {
+		w.watcher.Close() //nolint:errcheck
+		slog.Info("watcher: stopped")
+	}()
 
 	for {
 		select {

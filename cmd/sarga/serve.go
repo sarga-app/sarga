@@ -26,6 +26,8 @@ var serveCmd = &cobra.Command{
 			return err
 		}
 		slog.SetDefault(telemetry.NewLogger(cfg.Log))
+		v, _, _, _ := buildInfo()
+		slog.Info("sarga: starting", "version", v, "addr", cfg.Server.Addr, "data_dir", cfg.Data.Dir)
 
 		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 		defer stop()

@@ -30,6 +30,7 @@ func NewScheduler(scanner *Scanner) *Scheduler {
 }
 
 func (s *Scheduler) Load(schedules []LibrarySchedule) error {
+	n := 0
 	for _, ls := range schedules {
 		if ls.CronExpr == "" {
 			continue
@@ -49,14 +50,18 @@ func (s *Scheduler) Load(schedules []LibrarySchedule) error {
 		if err != nil {
 			return err
 		}
+		n++
 	}
+	slog.Info("scheduler: schedules loaded", "count", n)
 	return nil
 }
 
 func (s *Scheduler) Start() {
+	slog.Info("scheduler: started")
 	s.cron.Start()
 }
 
 func (s *Scheduler) Stop() {
 	s.cron.Stop()
+	slog.Info("scheduler: stopped")
 }

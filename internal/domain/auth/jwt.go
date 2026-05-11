@@ -132,6 +132,7 @@ func (c *AccessClaims) UserID() (uuid.UUID, error) {
 
 func LoadOrCreateSecretFile(path string) ([]byte, error) {
 	if data, err := readSecret(path); err == nil {
+		slog.Info("jwt secret: loaded", "path", path)
 		return data, nil
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return nil, err

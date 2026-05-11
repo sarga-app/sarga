@@ -49,6 +49,7 @@ func NewEnricher(
 }
 
 func (e *Enricher) Run(ctx context.Context) {
+	slog.Info("enricher: starting")
 	if err := e.store.ResetStuckEnrichments(ctx); err != nil {
 		slog.Error("enricher: reset stuck enrichments", "err", err)
 	}

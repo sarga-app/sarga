@@ -120,8 +120,11 @@ func Run(ctx context.Context, cfg *config.Config, dbInst *db.DB) error {
 					slog.Error("watcher: failed to watch path", "path", root, "err", err)
 				}
 			}
+			slog.Info("watcher: monitoring library roots", "count", len(pathMap))
 			go watcher.Run(watchCtx, pathMap)
 		}
+	} else {
+		slog.Info("watcher: disabled (fsnotify unavailable)")
 	}
 
 	srv := &http.Server{

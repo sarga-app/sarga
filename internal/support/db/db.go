@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"runtime"
 
 	_ "modernc.org/sqlite" // register sqlite driver
@@ -55,10 +56,7 @@ func New(path string) (*DB, error) {
 		write.Close() //nolint:errcheck // cleanup on error path
 		return nil, fmt.Errorf("open read pool: %w", err)
 	}
-	n := runtime.GOMAXPROCS(0) * 2
-	if n < 4 {
-		n = 4
-	}
+	n := max(runtime.GOMAXPROCS(0)*2, 4)
 	read.SetMaxOpenConns(n)
 	if err = read.PingContext(context.Background()); err != nil {
 		write.Close() //nolint:errcheck // cleanup on error path
@@ -66,6 +64,7 @@ func New(path string) (*DB, error) {
 		return nil, fmt.Errorf("ping read pool: %w", err)
 	}
 
+	slog.Info("db: pools ready", "path", path, "read_conns", n, "write_conns", 1)
 	return &DB{write: write, read: read}, nil
 }
 

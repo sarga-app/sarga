@@ -34,6 +34,7 @@ func LoadOrGenerate(path string) (*MasterKey, error) {
 	}
 	var k MasterKey
 	copy(k[:], data)
+	slog.Info("master key: loaded", "path", path)
 	return &k, nil
 }
 
