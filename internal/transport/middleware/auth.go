@@ -15,6 +15,12 @@ func RequireAuth(jwt domauth.JWTConfig) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tok, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 			if !ok || tok == "" {
+				if c, err := r.Cookie("sarga_token"); err == nil && c.Value != "" {
+					tok = c.Value
+					ok = true
+				}
+			}
+			if !ok || tok == "" {
 				httpx.WriteError(w, http.StatusUnauthorized, "missing_token", "missing bearer token")
 				return
 			}

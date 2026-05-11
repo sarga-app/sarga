@@ -75,7 +75,9 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	if err := h.issueSession(w, r, user, nil); err != nil {
 		slog.Error("login: issue session", "err", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "internal error")
+		return
 	}
+	slog.Info("login: success", "user_id", user.ID, "username", user.Username)
 }
 
 func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
@@ -135,7 +137,9 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	if err := h.issueSession(w, r, user, &row.ID); err != nil {
 		slog.Error("refresh: issue session", "err", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "internal error")
+		return
 	}
+	slog.Debug("refresh: token rotated", "user_id", user.ID)
 }
 
 func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
@@ -191,6 +195,7 @@ func (h *Handler) issueSession(w http.ResponseWriter, r *http.Request, user quer
 		return err
 	}
 	setRefreshCookie(w, r, refresh.Plaintext)
+	setAccessCookie(w, r, access)
 	httpx.WriteJSON(w, http.StatusOK, gen.LoginResponse{
 		AccessToken: access,
 		ExpiresIn:   int(domauth.AccessTTL.Seconds()),

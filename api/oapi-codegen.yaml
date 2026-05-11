@@ -6,3 +6,5 @@ generate:
   embedded-spec: true
 output-options:
   skip-prune: false
+  exclude-tags:
+    - art

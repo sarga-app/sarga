@@ -21,10 +21,45 @@ type Config struct {
 	Database DatabaseConfig `koanf:"database"`
 	Auth     AuthConfig     `koanf:"auth"`
 	Data     DataConfig     `koanf:"data"`
+	Metadata MetadataConfig `koanf:"metadata"`
 }
 
 type DataConfig struct {
 	Dir string `koanf:"dir"`
+}
+
+type MetadataConfig struct {
+	LastFM   LastFMConfig   `koanf:"lastfm"`
+	Fanart   FanartConfig   `koanf:"fanart"`
+	AcoustID AcoustIDConfig `koanf:"acoustid"`
+	Discogs  DiscogsConfig  `koanf:"discogs"`
+}
+
+func (m MetadataConfig) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("lastfm.apikey", redactedMarker(m.LastFM.APIKey)),
+		slog.String("lastfm.secret", redactedMarker(m.LastFM.Secret)),
+		slog.String("fanart.apikey", redactedMarker(m.Fanart.APIKey)),
+		slog.String("acoustid.apikey", redactedMarker(m.AcoustID.APIKey)),
+		slog.String("discogs.token", redactedMarker(m.Discogs.Token)),
+	)
+}
+
+type LastFMConfig struct {
+	APIKey string `koanf:"apikey"`
+	Secret string `koanf:"secret"`
+}
+
+type FanartConfig struct {
+	APIKey string `koanf:"apikey"`
+}
+
+type AcoustIDConfig struct {
+	APIKey string `koanf:"apikey"`
+}
+
+type DiscogsConfig struct {
+	Token string `koanf:"token"`
 }
 
 type AuthConfig struct {

@@ -8,6 +8,7 @@ import (
 	"compress/flate"
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -24,6 +25,102 @@ import (
 const (
 	BearerAuthScopes bearerAuthContextKey = "bearerAuth.Scopes"
 )
+
+// Defines values for AlbumReleaseType.
+const (
+	AlbumReleaseTypeAlbum       AlbumReleaseType = "album"
+	AlbumReleaseTypeCompilation AlbumReleaseType = "compilation"
+	AlbumReleaseTypeEp          AlbumReleaseType = "ep"
+	AlbumReleaseTypeLive        AlbumReleaseType = "live"
+	AlbumReleaseTypeOther       AlbumReleaseType = "other"
+	AlbumReleaseTypeRemix       AlbumReleaseType = "remix"
+	AlbumReleaseTypeSingle      AlbumReleaseType = "single"
+)
+
+// Valid indicates whether the value is a known member of the AlbumReleaseType enum.
+func (e AlbumReleaseType) Valid() bool {
+	switch e {
+	case AlbumReleaseTypeAlbum:
+		return true
+	case AlbumReleaseTypeCompilation:
+		return true
+	case AlbumReleaseTypeEp:
+		return true
+	case AlbumReleaseTypeLive:
+		return true
+	case AlbumReleaseTypeOther:
+		return true
+	case AlbumReleaseTypeRemix:
+		return true
+	case AlbumReleaseTypeSingle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AlbumDetailReleaseType.
+const (
+	AlbumDetailReleaseTypeAlbum       AlbumDetailReleaseType = "album"
+	AlbumDetailReleaseTypeCompilation AlbumDetailReleaseType = "compilation"
+	AlbumDetailReleaseTypeEp          AlbumDetailReleaseType = "ep"
+	AlbumDetailReleaseTypeLive        AlbumDetailReleaseType = "live"
+	AlbumDetailReleaseTypeOther       AlbumDetailReleaseType = "other"
+	AlbumDetailReleaseTypeRemix       AlbumDetailReleaseType = "remix"
+	AlbumDetailReleaseTypeSingle      AlbumDetailReleaseType = "single"
+)
+
+// Valid indicates whether the value is a known member of the AlbumDetailReleaseType enum.
+func (e AlbumDetailReleaseType) Valid() bool {
+	switch e {
+	case AlbumDetailReleaseTypeAlbum:
+		return true
+	case AlbumDetailReleaseTypeCompilation:
+		return true
+	case AlbumDetailReleaseTypeEp:
+		return true
+	case AlbumDetailReleaseTypeLive:
+		return true
+	case AlbumDetailReleaseTypeOther:
+		return true
+	case AlbumDetailReleaseTypeRemix:
+		return true
+	case AlbumDetailReleaseTypeSingle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AlbumTrackMatchSource.
+const (
+	AlbumTrackMatchSourceAcoustid     AlbumTrackMatchSource = "acoustid"
+	AlbumTrackMatchSourceDiscogsFuzzy AlbumTrackMatchSource = "discogs_fuzzy"
+	AlbumTrackMatchSourceDiscogsTag   AlbumTrackMatchSource = "discogs_tag"
+	AlbumTrackMatchSourceMbFuzzy      AlbumTrackMatchSource = "mb_fuzzy"
+	AlbumTrackMatchSourceMbidTag      AlbumTrackMatchSource = "mbid_tag"
+	AlbumTrackMatchSourceRaw          AlbumTrackMatchSource = "raw"
+)
+
+// Valid indicates whether the value is a known member of the AlbumTrackMatchSource enum.
+func (e AlbumTrackMatchSource) Valid() bool {
+	switch e {
+	case AlbumTrackMatchSourceAcoustid:
+		return true
+	case AlbumTrackMatchSourceDiscogsFuzzy:
+		return true
+	case AlbumTrackMatchSourceDiscogsTag:
+		return true
+	case AlbumTrackMatchSourceMbFuzzy:
+		return true
+	case AlbumTrackMatchSourceMbidTag:
+		return true
+	case AlbumTrackMatchSourceRaw:
+		return true
+	default:
+		return false
+	}
+}
 
 // Defines values for GrantAccessRequestRole.
 const (
@@ -65,6 +162,171 @@ func (e LibraryMemberRole) Valid() bool {
 	default:
 		return false
 	}
+}
+
+// Defines values for ScanRunStatus.
+const (
+	Completed ScanRunStatus = "completed"
+	Failed    ScanRunStatus = "failed"
+	Running   ScanRunStatus = "running"
+)
+
+// Valid indicates whether the value is a known member of the ScanRunStatus enum.
+func (e ScanRunStatus) Valid() bool {
+	switch e {
+	case Completed:
+		return true
+	case Failed:
+		return true
+	case Running:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TrackMatchSource.
+const (
+	TrackMatchSourceAcoustid     TrackMatchSource = "acoustid"
+	TrackMatchSourceDiscogsFuzzy TrackMatchSource = "discogs_fuzzy"
+	TrackMatchSourceDiscogsTag   TrackMatchSource = "discogs_tag"
+	TrackMatchSourceMbFuzzy      TrackMatchSource = "mb_fuzzy"
+	TrackMatchSourceMbidTag      TrackMatchSource = "mbid_tag"
+	TrackMatchSourceRaw          TrackMatchSource = "raw"
+)
+
+// Valid indicates whether the value is a known member of the TrackMatchSource enum.
+func (e TrackMatchSource) Valid() bool {
+	switch e {
+	case TrackMatchSourceAcoustid:
+		return true
+	case TrackMatchSourceDiscogsFuzzy:
+		return true
+	case TrackMatchSourceDiscogsTag:
+		return true
+	case TrackMatchSourceMbFuzzy:
+		return true
+	case TrackMatchSourceMbidTag:
+		return true
+	case TrackMatchSourceRaw:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListAlbumsParamsSort.
+const (
+	Added ListAlbumsParamsSort = "added"
+	Date  ListAlbumsParamsSort = "date"
+	Title ListAlbumsParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListAlbumsParamsSort enum.
+func (e ListAlbumsParamsSort) Valid() bool {
+	switch e {
+	case Added:
+		return true
+	case Date:
+		return true
+	case Title:
+		return true
+	default:
+		return false
+	}
+}
+
+// Album defines model for Album.
+type Album struct {
+	// CoverArtHash SHA-256 hex hash. Serve via `GET /art/{hash}`.
+	CoverArtHash      *string             `json:"cover_art_hash,omitempty"`
+	EditionNotes      *string             `json:"edition_notes,omitempty"`
+	Id                openapi_types.UUID  `json:"id"`
+	IsCompilation     bool                `json:"is_compilation"`
+	LabelName         *string             `json:"label_name,omitempty"`
+	PrimaryArtistId   *openapi_types.UUID `json:"primary_artist_id,omitempty"`
+	PrimaryArtistName *string             `json:"primary_artist_name,omitempty"`
+	ReleaseDate       *string             `json:"release_date,omitempty"`
+	ReleaseGroupId    openapi_types.UUID  `json:"release_group_id"`
+	ReleaseType       *AlbumReleaseType   `json:"release_type"`
+	Title             string              `json:"title"`
+}
+
+// AlbumReleaseType defines model for Album.ReleaseType.
+type AlbumReleaseType string
+
+// AlbumDetail defines model for AlbumDetail.
+type AlbumDetail struct {
+	CatalogNumber *string `json:"catalog_number,omitempty"`
+	Country       *string `json:"country,omitempty"`
+
+	// CoverArtHash SHA-256 hex hash. Serve via `GET /art/{hash}`.
+	CoverArtHash      *string                 `json:"cover_art_hash,omitempty"`
+	EditionNotes      *string                 `json:"edition_notes,omitempty"`
+	Id                openapi_types.UUID      `json:"id"`
+	IsCompilation     bool                    `json:"is_compilation"`
+	LabelName         *string                 `json:"label_name,omitempty"`
+	Pagination        Pagination              `json:"pagination"`
+	PrimaryArtistId   *openapi_types.UUID     `json:"primary_artist_id,omitempty"`
+	PrimaryArtistName *string                 `json:"primary_artist_name,omitempty"`
+	ReleaseDate       *string                 `json:"release_date,omitempty"`
+	ReleaseGroupId    openapi_types.UUID      `json:"release_group_id"`
+	ReleaseType       *AlbumDetailReleaseType `json:"release_type"`
+	Title             string                  `json:"title"`
+	TotalDiscs        *int                    `json:"total_discs,omitempty"`
+	Tracks            []AlbumTrack            `json:"tracks"`
+}
+
+// AlbumDetailReleaseType defines model for AlbumDetail.ReleaseType.
+type AlbumDetailReleaseType string
+
+// AlbumTrack defines model for AlbumTrack.
+type AlbumTrack struct {
+	Codec           *string               `json:"codec,omitempty"`
+	DiscNumber      int                   `json:"disc_number"`
+	DurationMs      *int                  `json:"duration_ms,omitempty"`
+	Format          *string               `json:"format,omitempty"`
+	IsLossless      bool                  `json:"is_lossless"`
+	IsPreferred     bool                  `json:"is_preferred"`
+	MatchConfidence float32               `json:"match_confidence"`
+	MatchSource     AlbumTrackMatchSource `json:"match_source"`
+	Position        int                   `json:"position"`
+	Title           string                `json:"title"`
+	TrackFileId     *openapi_types.UUID   `json:"track_file_id,omitempty"`
+	TrackId         openapi_types.UUID    `json:"track_id"`
+
+	// VersionCount Number of track_files for this track in the library.
+	VersionCount *int `json:"version_count,omitempty"`
+}
+
+// AlbumTrackMatchSource defines model for AlbumTrack.MatchSource.
+type AlbumTrackMatchSource string
+
+// Artist defines model for Artist.
+type Artist struct {
+	Country      *string            `json:"country,omitempty"`
+	Id           openapi_types.UUID `json:"id"`
+	Mbid         *string            `json:"mbid,omitempty"`
+	Name         string             `json:"name"`
+	ReleaseCount *int               `json:"release_count,omitempty"`
+	SortName     *string            `json:"sort_name,omitempty"`
+	TrackCount   *int               `json:"track_count,omitempty"`
+}
+
+// ArtistDetail defines model for ArtistDetail.
+type ArtistDetail struct {
+	BeginYear    *int               `json:"begin_year,omitempty"`
+	Bio          *string            `json:"bio,omitempty"`
+	Country      *string            `json:"country,omitempty"`
+	EndYear      *int               `json:"end_year,omitempty"`
+	Id           openapi_types.UUID `json:"id"`
+	Mbid         *string            `json:"mbid,omitempty"`
+	Name         string             `json:"name"`
+	Pagination   Pagination         `json:"pagination"`
+	ReleaseCount *int               `json:"release_count,omitempty"`
+	Releases     []Album            `json:"releases"`
+	SortName     *string            `json:"sort_name,omitempty"`
+	TrackCount   *int               `json:"track_count,omitempty"`
 }
 
 // Error defines model for Error.
@@ -109,6 +371,44 @@ type LibraryMember struct {
 // LibraryMemberRole defines model for LibraryMember.Role.
 type LibraryMemberRole string
 
+// LibrarySettings defines model for LibrarySettings.
+type LibrarySettings struct {
+	AlbumArtPriority         []string `json:"album_art_priority"`
+	ArtistImagePriority      []string `json:"artist_image_priority"`
+	EnableAcoustid           bool     `json:"enable_acoustid"`
+	EnableDiscogs            bool     `json:"enable_discogs"`
+	EnableMusicbrainz        bool     `json:"enable_musicbrainz"`
+	Extensions               []string `json:"extensions"`
+	FollowSymlinks           bool     `json:"follow_symlinks"`
+	FormatPreference         []string `json:"format_preference"`
+	MatchConfidenceThreshold float32  `json:"match_confidence_threshold"`
+	MetadataLanguage         string   `json:"metadata_language"`
+	ScanOnCreate             bool     `json:"scan_on_create"`
+	ScanPlaylistFiles        bool     `json:"scan_playlist_files"`
+
+	// ScanSchedule Cron expression (6-field with seconds). Null = no schedule.
+	ScanSchedule    *string `json:"scan_schedule,omitempty"`
+	WatchForChanges bool    `json:"watch_for_changes"`
+}
+
+// LibrarySettingsWrite defines model for LibrarySettingsWrite.
+type LibrarySettingsWrite struct {
+	AlbumArtPriority         *[]string `json:"album_art_priority,omitempty"`
+	ArtistImagePriority      *[]string `json:"artist_image_priority,omitempty"`
+	EnableAcoustid           *bool     `json:"enable_acoustid,omitempty"`
+	EnableDiscogs            *bool     `json:"enable_discogs,omitempty"`
+	EnableMusicbrainz        *bool     `json:"enable_musicbrainz,omitempty"`
+	Extensions               *[]string `json:"extensions,omitempty"`
+	FollowSymlinks           *bool     `json:"follow_symlinks,omitempty"`
+	FormatPreference         *[]string `json:"format_preference,omitempty"`
+	MatchConfidenceThreshold *float32  `json:"match_confidence_threshold,omitempty"`
+	MetadataLanguage         *string   `json:"metadata_language,omitempty"`
+	ScanOnCreate             *bool     `json:"scan_on_create,omitempty"`
+	ScanPlaylistFiles        *bool     `json:"scan_playlist_files,omitempty"`
+	ScanSchedule             *string   `json:"scan_schedule,omitempty"`
+	WatchForChanges          *bool     `json:"watch_for_changes,omitempty"`
+}
+
 // LibraryWrite defines model for LibraryWrite.
 type LibraryWrite struct {
 	Name string `json:"name"`
@@ -139,6 +439,120 @@ type MeResponse struct {
 	UserId  openapi_types.UUID `json:"user_id"`
 }
 
+// Pagination defines model for Pagination.
+type Pagination struct {
+	Limit      int `json:"limit"`
+	Page       int `json:"page"`
+	Total      int `json:"total"`
+	TotalPages int `json:"total_pages"`
+}
+
+// Playlist defines model for Playlist.
+type Playlist struct {
+	Description *string            `json:"description,omitempty"`
+	Id          openapi_types.UUID `json:"id"`
+	IsPublic    bool               `json:"is_public"`
+	Name        string             `json:"name"`
+	TrackCount  int                `json:"track_count"`
+}
+
+// PlaylistDetail defines model for PlaylistDetail.
+type PlaylistDetail struct {
+	Description *string            `json:"description,omitempty"`
+	Id          openapi_types.UUID `json:"id"`
+	IsPublic    bool               `json:"is_public"`
+	Name        string             `json:"name"`
+	Pagination  Pagination         `json:"pagination"`
+	TrackCount  int                `json:"track_count"`
+	Tracks      []PlaylistTrack    `json:"tracks"`
+}
+
+// PlaylistTrack defines model for PlaylistTrack.
+type PlaylistTrack struct {
+	Codec       *string            `json:"codec,omitempty"`
+	DurationMs  *int               `json:"duration_ms,omitempty"`
+	Format      *string            `json:"format,omitempty"`
+	IsLossless  *bool              `json:"is_lossless,omitempty"`
+	IsPreferred *bool              `json:"is_preferred,omitempty"`
+	Position    int                `json:"position"`
+	Title       string             `json:"title"`
+	TrackId     openapi_types.UUID `json:"track_id"`
+}
+
+// ScanRun defines model for ScanRun.
+type ScanRun struct {
+	Error          *string            `json:"error,omitempty"`
+	FilesAdded     int                `json:"files_added"`
+	FilesErrored   int                `json:"files_errored"`
+	FilesRemoved   int                `json:"files_removed"`
+	FilesScanned   int                `json:"files_scanned"`
+	FilesUnchanged int                `json:"files_unchanged"`
+	FilesUpdated   int                `json:"files_updated"`
+	FinishedAt     *time.Time         `json:"finished_at,omitempty"`
+	Id             openapi_types.UUID `json:"id"`
+	LibraryId      openapi_types.UUID `json:"library_id"`
+
+	// PctComplete Computed. 0–100. Null when total_files is 0.
+	PctComplete *float32      `json:"pct_complete,omitempty"`
+	StartedAt   time.Time     `json:"started_at"`
+	Status      ScanRunStatus `json:"status"`
+	TotalFiles  int           `json:"total_files"`
+}
+
+// ScanRunStatus defines model for ScanRun.Status.
+type ScanRunStatus string
+
+// SearchResultGroup defines model for SearchResultGroup.
+type SearchResultGroup struct {
+	Pagination *Pagination `json:"pagination,omitempty"`
+	Total      int         `json:"total"`
+}
+
+// SearchResults defines model for SearchResults.
+type SearchResults struct {
+	Albums struct {
+		Data       *[]Album    `json:"data,omitempty"`
+		Pagination *Pagination `json:"pagination,omitempty"`
+		Total      int         `json:"total"`
+	} `json:"albums"`
+	Artists struct {
+		Data       *[]Artist   `json:"data,omitempty"`
+		Pagination *Pagination `json:"pagination,omitempty"`
+		Total      int         `json:"total"`
+	} `json:"artists"`
+	Query  string `json:"query"`
+	Tracks struct {
+		Data       *[]Track    `json:"data,omitempty"`
+		Pagination *Pagination `json:"pagination,omitempty"`
+		Total      int         `json:"total"`
+	} `json:"tracks"`
+}
+
+// Track defines model for Track.
+type Track struct {
+	Codec             *string             `json:"codec,omitempty"`
+	DurationMs        *int                `json:"duration_ms,omitempty"`
+	Format            *string             `json:"format,omitempty"`
+	Id                openapi_types.UUID  `json:"id"`
+	IsLossless        *bool               `json:"is_lossless,omitempty"`
+	MatchConfidence   float32             `json:"match_confidence"`
+	MatchSource       TrackMatchSource    `json:"match_source"`
+	PrimaryArtistId   *openapi_types.UUID `json:"primary_artist_id,omitempty"`
+	PrimaryArtistName *string             `json:"primary_artist_name,omitempty"`
+	ReleaseId         *openapi_types.UUID `json:"release_id,omitempty"`
+	ReleaseTitle      *string             `json:"release_title,omitempty"`
+	Title             string              `json:"title"`
+}
+
+// TrackMatchSource defines model for Track.MatchSource.
+type TrackMatchSource string
+
+// Limit defines model for Limit.
+type Limit = int
+
+// Page defines model for Page.
+type Page = int
+
 // BadRequest defines model for BadRequest.
 type BadRequest = Error
 
@@ -160,6 +574,80 @@ type Unauthorized = Error
 // bearerAuthContextKey is the context key for bearerAuth security scheme
 type bearerAuthContextKey string
 
+// ListAlbumsParams defines parameters for ListAlbums.
+type ListAlbumsParams struct {
+	LibraryId        openapi_types.UUID    `form:"library_id" json:"library_id"`
+	ArtistId         *openapi_types.UUID   `form:"artist_id,omitempty" json:"artist_id,omitempty"`
+	Sort             *ListAlbumsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+	CompilationsOnly *bool                 `form:"compilations_only,omitempty" json:"compilations_only,omitempty"`
+
+	// GroupByReleaseGroup Collapse editions of the same abstract album into one entry.
+	GroupByReleaseGroup *bool  `form:"group_by_release_group,omitempty" json:"group_by_release_group,omitempty"`
+	Page                *Page  `form:"page,omitempty" json:"page,omitempty"`
+	Limit               *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListAlbumsParamsSort defines parameters for ListAlbums.
+type ListAlbumsParamsSort string
+
+// GetAlbumParams defines parameters for GetAlbum.
+type GetAlbumParams struct {
+	LibraryId openapi_types.UUID `form:"library_id" json:"library_id"`
+	Page      *Page              `form:"page,omitempty" json:"page,omitempty"`
+	Limit     *Limit             `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListArtistsParams defines parameters for ListArtists.
+type ListArtistsParams struct {
+	LibraryId openapi_types.UUID `form:"library_id" json:"library_id"`
+	Page      *Page              `form:"page,omitempty" json:"page,omitempty"`
+	Limit     *Limit             `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// GetArtistParams defines parameters for GetArtist.
+type GetArtistParams struct {
+	LibraryId openapi_types.UUID `form:"library_id" json:"library_id"`
+	Page      *Page              `form:"page,omitempty" json:"page,omitempty"`
+	Limit     *Limit             `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListScanRunsParams defines parameters for ListScanRuns.
+type ListScanRunsParams struct {
+	Page  *Page  `form:"page,omitempty" json:"page,omitempty"`
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListPlaylistsParams defines parameters for ListPlaylists.
+type ListPlaylistsParams struct {
+	LibraryId openapi_types.UUID `form:"library_id" json:"library_id"`
+	Page      *Page              `form:"page,omitempty" json:"page,omitempty"`
+	Limit     *Limit             `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// GetPlaylistParams defines parameters for GetPlaylist.
+type GetPlaylistParams struct {
+	LibraryId openapi_types.UUID `form:"library_id" json:"library_id"`
+	Page      *Page              `form:"page,omitempty" json:"page,omitempty"`
+	Limit     *Limit             `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// SearchParams defines parameters for Search.
+type SearchParams struct {
+	Q         string             `form:"q" json:"q"`
+	LibraryId openapi_types.UUID `form:"library_id" json:"library_id"`
+	Page      *Page              `form:"page,omitempty" json:"page,omitempty"`
+	Limit     *Limit             `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListTracksParams defines parameters for ListTracks.
+type ListTracksParams struct {
+	LibraryId openapi_types.UUID  `form:"library_id" json:"library_id"`
+	AlbumId   *openapi_types.UUID `form:"album_id,omitempty" json:"album_id,omitempty"`
+	ArtistId  *openapi_types.UUID `form:"artist_id,omitempty" json:"artist_id,omitempty"`
+	Page      *Page               `form:"page,omitempty" json:"page,omitempty"`
+	Limit     *Limit              `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
 
@@ -172,8 +660,23 @@ type UpdateLibraryJSONRequestBody = LibraryWrite
 // GrantLibraryAccessJSONRequestBody defines body for GrantLibraryAccess for application/json ContentType.
 type GrantLibraryAccessJSONRequestBody = GrantAccessRequest
 
+// PutLibrarySettingsJSONRequestBody defines body for PutLibrarySettings for application/json ContentType.
+type PutLibrarySettingsJSONRequestBody = LibrarySettingsWrite
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// List albums
+	// (GET /albums)
+	ListAlbums(w http.ResponseWriter, r *http.Request, params ListAlbumsParams)
+	// Get album detail
+	// (GET /albums/{id})
+	GetAlbum(w http.ResponseWriter, r *http.Request, id openapi_types.UUID, params GetAlbumParams)
+	// List artists
+	// (GET /artists)
+	ListArtists(w http.ResponseWriter, r *http.Request, params ListArtistsParams)
+	// Get artist detail
+	// (GET /artists/{id})
+	GetArtist(w http.ResponseWriter, r *http.Request, id openapi_types.UUID, params GetArtistParams)
 	// Log in
 	// (POST /auth/login)
 	Login(w http.ResponseWriter, r *http.Request)
@@ -207,14 +710,65 @@ type ServerInterface interface {
 	// Revoke access
 	// (DELETE /libraries/{libraryId}/access/{userId})
 	RevokeLibraryAccess(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID, userId openapi_types.UUID)
+	// Start a scan
+	// (POST /libraries/{libraryId}/scan)
+	TriggerScan(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID)
+	// List scan history
+	// (GET /libraries/{libraryId}/scan-runs)
+	ListScanRuns(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID, params ListScanRunsParams)
+	// Get a scan run
+	// (GET /libraries/{libraryId}/scan-runs/{runId})
+	GetScanRun(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID, runId openapi_types.UUID)
+	// Get library settings
+	// (GET /libraries/{libraryId}/settings)
+	GetLibrarySettings(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID)
+	// Update library settings
+	// (PUT /libraries/{libraryId}/settings)
+	PutLibrarySettings(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID)
 	// Current user
 	// (GET /me)
 	Me(w http.ResponseWriter, r *http.Request)
+	// List playlists
+	// (GET /playlists)
+	ListPlaylists(w http.ResponseWriter, r *http.Request, params ListPlaylistsParams)
+	// Get playlist detail
+	// (GET /playlists/{id})
+	GetPlaylist(w http.ResponseWriter, r *http.Request, id openapi_types.UUID, params GetPlaylistParams)
+	// Search catalog
+	// (GET /search)
+	Search(w http.ResponseWriter, r *http.Request, params SearchParams)
+	// List tracks
+	// (GET /tracks)
+	ListTracks(w http.ResponseWriter, r *http.Request, params ListTracksParams)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
+
+// List albums
+// (GET /albums)
+func (_ Unimplemented) ListAlbums(w http.ResponseWriter, r *http.Request, params ListAlbumsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get album detail
+// (GET /albums/{id})
+func (_ Unimplemented) GetAlbum(w http.ResponseWriter, r *http.Request, id openapi_types.UUID, params GetAlbumParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// List artists
+// (GET /artists)
+func (_ Unimplemented) ListArtists(w http.ResponseWriter, r *http.Request, params ListArtistsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get artist detail
+// (GET /artists/{id})
+func (_ Unimplemented) GetArtist(w http.ResponseWriter, r *http.Request, id openapi_types.UUID, params GetArtistParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
 
 // Log in
 // (POST /auth/login)
@@ -282,9 +836,63 @@ func (_ Unimplemented) RevokeLibraryAccess(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Start a scan
+// (POST /libraries/{libraryId}/scan)
+func (_ Unimplemented) TriggerScan(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// List scan history
+// (GET /libraries/{libraryId}/scan-runs)
+func (_ Unimplemented) ListScanRuns(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID, params ListScanRunsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get a scan run
+// (GET /libraries/{libraryId}/scan-runs/{runId})
+func (_ Unimplemented) GetScanRun(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID, runId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get library settings
+// (GET /libraries/{libraryId}/settings)
+func (_ Unimplemented) GetLibrarySettings(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Update library settings
+// (PUT /libraries/{libraryId}/settings)
+func (_ Unimplemented) PutLibrarySettings(w http.ResponseWriter, r *http.Request, libraryId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Current user
 // (GET /me)
 func (_ Unimplemented) Me(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// List playlists
+// (GET /playlists)
+func (_ Unimplemented) ListPlaylists(w http.ResponseWriter, r *http.Request, params ListPlaylistsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get playlist detail
+// (GET /playlists/{id})
+func (_ Unimplemented) GetPlaylist(w http.ResponseWriter, r *http.Request, id openapi_types.UUID, params GetPlaylistParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Search catalog
+// (GET /search)
+func (_ Unimplemented) Search(w http.ResponseWriter, r *http.Request, params SearchParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// List tracks
+// (GET /tracks)
+func (_ Unimplemented) ListTracks(w http.ResponseWriter, r *http.Request, params ListTracksParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -296,6 +904,336 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// ListAlbums operation middleware
+func (siw *ServerInterfaceWrapper) ListAlbums(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAlbumsParams
+
+	// ------------- Required query parameter "library_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "library_id", r.URL.Query(), &params.LibraryId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "library_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "library_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "artist_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "artist_id", r.URL.Query(), &params.ArtistId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "artist_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "artist_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "sort" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "sort", r.URL.Query(), &params.Sort, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "sort"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sort", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "compilations_only" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "compilations_only", r.URL.Query(), &params.CompilationsOnly, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "compilations_only"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "compilations_only", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "group_by_release_group" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "group_by_release_group", r.URL.Query(), &params.GroupByReleaseGroup, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "group_by_release_group"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "group_by_release_group", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", r.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "page"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAlbums(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAlbum operation middleware
+func (siw *ServerInterfaceWrapper) GetAlbum(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAlbumParams
+
+	// ------------- Required query parameter "library_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "library_id", r.URL.Query(), &params.LibraryId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "library_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "library_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", r.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "page"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAlbum(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListArtists operation middleware
+func (siw *ServerInterfaceWrapper) ListArtists(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListArtistsParams
+
+	// ------------- Required query parameter "library_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "library_id", r.URL.Query(), &params.LibraryId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "library_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "library_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", r.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "page"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListArtists(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetArtist operation middleware
+func (siw *ServerInterfaceWrapper) GetArtist(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetArtistParams
+
+	// ------------- Required query parameter "library_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "library_id", r.URL.Query(), &params.LibraryId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "library_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "library_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", r.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "page"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetArtist(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // Login operation middleware
 func (siw *ServerInterfaceWrapper) Login(w http.ResponseWriter, r *http.Request) {
@@ -580,6 +1518,204 @@ func (siw *ServerInterfaceWrapper) RevokeLibraryAccess(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
+// TriggerScan operation middleware
+func (siw *ServerInterfaceWrapper) TriggerScan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "libraryId" -------------
+	var libraryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "libraryId", chi.URLParam(r, "libraryId"), &libraryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "libraryId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TriggerScan(w, r, libraryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListScanRuns operation middleware
+func (siw *ServerInterfaceWrapper) ListScanRuns(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "libraryId" -------------
+	var libraryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "libraryId", chi.URLParam(r, "libraryId"), &libraryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "libraryId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListScanRunsParams
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", r.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "page"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListScanRuns(w, r, libraryId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetScanRun operation middleware
+func (siw *ServerInterfaceWrapper) GetScanRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "libraryId" -------------
+	var libraryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "libraryId", chi.URLParam(r, "libraryId"), &libraryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "libraryId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "runId" -------------
+	var runId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", chi.URLParam(r, "runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetScanRun(w, r, libraryId, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetLibrarySettings operation middleware
+func (siw *ServerInterfaceWrapper) GetLibrarySettings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "libraryId" -------------
+	var libraryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "libraryId", chi.URLParam(r, "libraryId"), &libraryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "libraryId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetLibrarySettings(w, r, libraryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutLibrarySettings operation middleware
+func (siw *ServerInterfaceWrapper) PutLibrarySettings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "libraryId" -------------
+	var libraryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "libraryId", chi.URLParam(r, "libraryId"), &libraryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "libraryId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutLibrarySettings(w, r, libraryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // Me operation middleware
 func (siw *ServerInterfaceWrapper) Me(w http.ResponseWriter, r *http.Request) {
 
@@ -591,6 +1727,314 @@ func (siw *ServerInterfaceWrapper) Me(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Me(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPlaylists operation middleware
+func (siw *ServerInterfaceWrapper) ListPlaylists(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListPlaylistsParams
+
+	// ------------- Required query parameter "library_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "library_id", r.URL.Query(), &params.LibraryId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "library_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "library_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", r.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "page"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPlaylists(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPlaylist operation middleware
+func (siw *ServerInterfaceWrapper) GetPlaylist(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetPlaylistParams
+
+	// ------------- Required query parameter "library_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "library_id", r.URL.Query(), &params.LibraryId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "library_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "library_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", r.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "page"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPlaylist(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Search operation middleware
+func (siw *ServerInterfaceWrapper) Search(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchParams
+
+	// ------------- Required query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "library_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "library_id", r.URL.Query(), &params.LibraryId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "library_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "library_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", r.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "page"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Search(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListTracks operation middleware
+func (siw *ServerInterfaceWrapper) ListTracks(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListTracksParams
+
+	// ------------- Required query parameter "library_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "library_id", r.URL.Query(), &params.LibraryId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "library_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "library_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "album_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "album_id", r.URL.Query(), &params.AlbumId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "album_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "album_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "artist_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "artist_id", r.URL.Query(), &params.ArtistId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "artist_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "artist_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", r.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "page"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListTracks(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -714,6 +2158,18 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/albums", wrapper.ListAlbums)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/albums/{id}", wrapper.GetAlbum)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/artists", wrapper.ListArtists)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/artists/{id}", wrapper.GetArtist)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/auth/login", wrapper.Login)
 	})
 	r.Group(func(r chi.Router) {
@@ -747,7 +2203,34 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Delete(options.BaseURL+"/libraries/{libraryId}/access/{userId}", wrapper.RevokeLibraryAccess)
 	})
 	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/libraries/{libraryId}/scan", wrapper.TriggerScan)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/libraries/{libraryId}/scan-runs", wrapper.ListScanRuns)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/libraries/{libraryId}/scan-runs/{runId}", wrapper.GetScanRun)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/libraries/{libraryId}/settings", wrapper.GetLibrarySettings)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/libraries/{libraryId}/settings", wrapper.PutLibrarySettings)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/me", wrapper.Me)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/playlists", wrapper.ListPlaylists)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/playlists/{id}", wrapper.GetPlaylist)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/search", wrapper.Search)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/tracks", wrapper.ListTracks)
 	})
 
 	return r
@@ -758,45 +2241,91 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"aEMHAYIIdPAdo89p2c1Qc6G5PF/+NwAA//8=",
+	"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",
+	"OCMLdBH/uKWpouuP1/8fAAD//w==",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

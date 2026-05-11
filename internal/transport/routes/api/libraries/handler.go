@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 
 	domauth "github.com/sarga-app/sarga/internal/domain/auth"
+	"github.com/sarga-app/sarga/internal/domain/library"
 	"github.com/sarga-app/sarga/internal/support/db"
 	"github.com/sarga-app/sarga/internal/support/db/queries"
 	"github.com/sarga-app/sarga/internal/transport/httpx"
@@ -22,11 +23,13 @@ import (
 )
 
 type Handler struct {
-	db *db.DB
+	db      *db.DB
+	scanner *library.Scanner
+	jwt     domauth.JWTConfig
 }
 
-func NewHandler(d *db.DB) *Handler {
-	return &Handler{db: d}
+func NewHandler(d *db.DB, scanner *library.Scanner, jwt domauth.JWTConfig) *Handler {
+	return &Handler{db: d, scanner: scanner, jwt: jwt}
 }
 
 func (h *Handler) ListLibraries(w http.ResponseWriter, r *http.Request) {
@@ -105,7 +108,20 @@ func (h *Handler) CreateLibrary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	slog.Info("library: created", "library_id", lib.ID, "name", lib.Name)
 	httpx.WriteJSON(w, http.StatusCreated, toGenLibrary(lib, cleanPaths))
+
+	if h.scanner != nil {
+		settings, err := queries.New(h.db.Read()).GetLibrarySettings(ctx, lib.ID)
+		if err == nil && settings.ScanOnAdd {
+			go func() { //nolint:contextcheck,gosec
+				if err := h.scanner.Scan(context.Background(), lib.ID); err != nil &&
+					!errors.Is(err, library.ErrScanAlreadyRunning) {
+					slog.Error("scan_on_create: async error", "library_id", lib.ID, "err", err)
+				}
+			}()
+		}
+	}
 }
 
 func (h *Handler) GetLibrary(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID) {
@@ -191,6 +207,7 @@ func (h *Handler) UpdateLibrary(w http.ResponseWriter, r *http.Request, libraryI
 		return
 	}
 
+	slog.Info("library: updated", "library_id", libraryID)
 	httpx.WriteJSON(w, http.StatusOK, toGenLibrary(lib, cleanPaths))
 }
 
@@ -201,6 +218,7 @@ func (h *Handler) DeleteLibrary(w http.ResponseWriter, r *http.Request, libraryI
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "internal error")
 		return
 	}
+	slog.Info("library: deleted", "library_id", libraryID)
 	w.WriteHeader(http.StatusNoContent)
 }
 

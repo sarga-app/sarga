@@ -25,6 +25,20 @@ func setRefreshCookie(w http.ResponseWriter, r *http.Request, plaintext string) 
 	})
 }
 
+// setAccessCookie sets a short-lived non-HttpOnly cookie carrying the JWT so
+// that browser <img> requests to /art/* can carry auth without JS involvement.
+func setAccessCookie(w http.ResponseWriter, r *http.Request, token string) {
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // non-HttpOnly is required; browser img tags can't send headers
+		Name:     "sarga_token",
+		Value:    token,
+		Path:     "/art",
+		MaxAge:   int(domauth.AccessTTL.Seconds()),
+		HttpOnly: false,
+		Secure:   r.TLS != nil,
+		SameSite: http.SameSiteStrictMode,
+	})
+}
+
 func clearRefreshCookie(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{ //nolint:gosec // Secure derived from request TLS state
 		Name:     RefreshCookieName,

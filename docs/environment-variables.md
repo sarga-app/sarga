@@ -40,6 +40,18 @@ All variables are optional — defaults work for the standard Docker install.
 
 ---
 
+## Metadata providers
+
+API keys for optional external metadata services. All are optional — Sarga silently skips a provider if its key is absent. MusicBrainz, TheAudioDB (free tier), Cover Art Archive, and LRCLib require no keys.
+
+| Variable | Default | Description |
+|---|---|---|
+| `SARGA_METADATA_LASTFM_APIKEY` | _(unset)_ | Last.fm API key. Required for Last.fm artist bios and genre tags. Get one at [last.fm/api](https://www.last.fm/api/account/create). |
+| `SARGA_METADATA_LASTFM_SECRET` | _(unset)_ | Last.fm API secret (paired with the key above). |
+| `SARGA_METADATA_FANART_APIKEY` | _(unset)_ | Fanart.tv personal API key. Enables HD artist logos, clearart, and backgrounds. Get one at [fanart.tv](https://fanart.tv/get-an-api-key/). |
+| `SARGA_METADATA_ACOUSTID_APIKEY` | _(unset)_ | AcoustID application API key. Required for audio fingerprint submission. Lookups work without a key but submissions need one. Get one at [acoustid.org](https://acoustid.org/login). |
+| `SARGA_METADATA_DISCOGS_TOKEN` | _(unset)_ | Discogs personal access token. Enables Discogs as a metadata and cover art source (especially valuable for niche/underground releases). Get one at [discogs.com/settings/developers](https://www.discogs.com/settings/developers). |
+
 ## System env vars sarga honours
 
 These aren't `SARGA_*` knobs — they're standard POSIX/Go env vars the runtime picks up automatically when set in the container.

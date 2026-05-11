@@ -5,12 +5,24 @@
 package queries
 
 type Artist struct {
-	ID        string
-	Mbid      *string
-	Name      string
-	SortName  string
-	CreatedAt string
-	UpdatedAt string
+	ID               string
+	Mbid             *string
+	Name             string
+	SortName         string
+	CreatedAt        string
+	UpdatedAt        string
+	Country          *string
+	Bio              *string
+	BeginYear        *int64
+	EndYear          *int64
+	IsVariousArtists bool
+	DiscogsID        *string
+	TadbID           *string
+}
+
+type ArtistsFt struct {
+	ArtistID string
+	Name     string
 }
 
 type CoverArt struct {
@@ -25,6 +37,18 @@ type CoverArt struct {
 	ContentHash    []byte
 	IsPreferred    bool
 	FetchedAt      string
+}
+
+type EnrichmentQueue struct {
+	ID              string
+	TrackFileID     string
+	LibraryID       string
+	Priority        int64
+	Attempts        int64
+	LastAttemptedAt *string
+	Status          string
+	LastError       *string
+	CreatedAt       string
 }
 
 type Library struct {
@@ -46,6 +70,28 @@ type LibraryPath struct {
 	LibraryID string
 	Path      string
 	CreatedAt string
+}
+
+type LibrarySetting struct {
+	LibraryID                 string
+	ScanOnAdd                 bool
+	FsnotifyEnabled           bool
+	ScanSchedule              *string
+	FollowSymlinks            bool
+	ScanPlaylistFiles         bool
+	FileExtensions            string
+	MbEnrichmentEnabled       bool
+	AcoustidEnabled           bool
+	DiscogsEnabled            bool
+	MatchThreshold            float64
+	MetadataLanguage          string
+	ArtistProviderPriority    string
+	AlbumProviderPriority     string
+	AlbumArtSourcePriority    string
+	ArtistImageSourcePriority string
+	FormatPreferenceOrder     string
+	CreatedAt                 string
+	UpdatedAt                 string
 }
 
 type ListeningEvent struct {
@@ -121,6 +167,9 @@ type Release struct {
 	EditionNotes   *string
 	CreatedAt      string
 	UpdatedAt      string
+	CatalogNumber  *string
+	DiscogsID      *string
+	TotalDiscs     int64
 }
 
 type ReleaseArtist struct {
@@ -147,17 +196,25 @@ type ReleaseTrack struct {
 	Position   int64
 }
 
+type ReleasesFt struct {
+	ReleaseID string
+	Title     string
+}
+
 type ScanRun struct {
-	ID           string
-	LibraryID    string
-	StartedAt    string
-	FinishedAt   *string
-	Status       string
-	FilesScanned int64
-	FilesAdded   int64
-	FilesUpdated int64
-	FilesRemoved int64
-	Error        *string
+	ID             string
+	LibraryID      string
+	StartedAt      string
+	FinishedAt     *string
+	Status         string
+	FilesScanned   int64
+	FilesAdded     int64
+	FilesUpdated   int64
+	FilesRemoved   int64
+	Error          *string
+	TotalFiles     int64
+	FilesUnchanged int64
+	FilesErrored   int64
 }
 
 type ScrobbleOutbox struct {
@@ -190,6 +247,9 @@ type Track struct {
 	Isrc       *string
 	CreatedAt  string
 	UpdatedAt  string
+	Bpm        *int64
+	KeySig     *string
+	AcoustidID *string
 }
 
 type TrackArtist struct {
@@ -200,24 +260,36 @@ type TrackArtist struct {
 }
 
 type TrackFile struct {
-	ID            string
-	TrackID       string
-	LibraryID     string
-	RelativePath  string
-	Format        string
-	Codec         string
-	BitrateKbps   *int64
-	SampleRateHz  *int64
-	BitDepth      *int64
-	Channels      int64
-	FileSizeBytes int64
-	Mtime         string
-	ContentHash   []byte
-	SourceKind    string
-	IsLossless    bool
-	IsPreferred   bool
-	AddedAt       string
-	UpdatedAt     string
+	ID              string
+	TrackID         string
+	LibraryID       string
+	RelativePath    string
+	Format          string
+	Codec           string
+	BitrateKbps     *int64
+	SampleRateHz    *int64
+	BitDepth        *int64
+	Channels        int64
+	FileSizeBytes   int64
+	Mtime           string
+	ContentHash     []byte
+	SourceKind      string
+	IsLossless      bool
+	IsPreferred     bool
+	AddedAt         string
+	UpdatedAt       string
+	MatchConfidence float64
+	MatchSource     string
+	MissingSince    *string
+	RgTrackGain     *float64
+	RgTrackPeak     *float64
+	RgAlbumGain     *float64
+	RgAlbumPeak     *float64
+}
+
+type TracksFt struct {
+	TrackID string
+	Title   string
 }
 
 type User struct {

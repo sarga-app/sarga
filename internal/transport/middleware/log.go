@@ -32,9 +32,9 @@ func RequestLogger(next http.Handler) http.Handler {
 			}
 			switch {
 			case status >= 500:
-				slog.Warn("request", attrs...)
+				slog.Error("request", attrs...)
 			case status >= 400:
-				slog.Info("request", attrs...)
+				slog.Warn("request", attrs...)
 			default:
 				slog.Debug("request", attrs...)
 			}
