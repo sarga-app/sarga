@@ -173,6 +173,301 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/libraries/{libraryId}/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                libraryId: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get library settings
+         * @description Returns the current per-library configuration. Admin only.
+         */
+        get: operations["getLibrarySettings"];
+        /**
+         * Update library settings
+         * @description Admin only. Full replace — send the entire settings object.
+         */
+        put: operations["putLibrarySettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/libraries/{libraryId}/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                libraryId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a scan
+         * @description Queues a full scan of all library paths. Returns 202 immediately.
+         *     Returns 409 if a scan is already running for this library.
+         */
+        post: operations["triggerScan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/libraries/{libraryId}/scan-runs": {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path: {
+                libraryId: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List scan history
+         * @description Paginated, newest first.
+         */
+        get: operations["listScanRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/libraries/{libraryId}/scan-runs/{runId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                libraryId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a scan run
+         * @description Returns detail for a single scan run including stats and error list.
+         */
+        get: operations["getScanRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/albums": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List albums
+         * @description Paginated album grid. Sorted by date, title, or date added. Optionally filtered to compilations only or collapsed by release group.
+         */
+        get: operations["listAlbums"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/albums/{id}": {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get album detail
+         * @description Returns the release with a paginated tracklist.
+         */
+        get: operations["getAlbum"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/artists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List artists
+         * @description Alphabetical. Various Artists pseudo-artist is excluded — access
+         *     compilations via `GET /albums?compilations_only=true`.
+         */
+        get: operations["listArtists"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/artists/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get artist detail
+         * @description Returns artist metadata (bio, career span, country) with a paginated discography grid scoped to the caller's library.
+         */
+        get: operations["getArtist"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tracks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List tracks
+         * @description Flat paginated track list. Filter by library, album, or artist.
+         */
+        get: operations["listTracks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/playlists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List playlists
+         * @description Paginated list of playlists in the library. In Phase 2 these are read-only M3U imports.
+         */
+        get: operations["listPlaylists"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/playlists/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get playlist detail
+         * @description Returns playlist metadata with a paginated tracklist.
+         */
+        get: operations["getPlaylist"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search catalog
+         * @description FTS5 trigram search. Results grouped by type (albums, artists,
+         *     tracks). Each group is independently paginated.
+         */
+        get: operations["search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/art/{hash}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Serve cover art
+         * @description Serves a cached image file by its SHA-256 content hash. Mounted at
+         *     `/art/{hash}`, not under `/api/v1`. No authentication required —
+         *     the hash itself is the capability token (256-bit preimage resistance
+         *     makes enumeration infeasible).
+         *
+         *     Responses are permanently cacheable: `Cache-Control: public,
+         *     max-age=31536000, immutable`. Clients and CDNs may cache forever;
+         *     the URL changes only when the image content changes.
+         */
+        get: operations["getArt"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me": {
         parameters: {
             query?: never;
@@ -214,6 +509,243 @@ export interface components {
             /** Format: uuid */
             user_id: string;
             is_admin: boolean;
+        };
+        Pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            total_pages: number;
+        };
+        LibrarySettings: {
+            /** @default true */
+            scan_on_create: boolean;
+            /** @default true */
+            watch_for_changes: boolean;
+            /**
+             * @description Cron expression (6-field with seconds). Null = no schedule.
+             * @example 0 0 3 * * *
+             */
+            scan_schedule?: string | null;
+            /** @default true */
+            follow_symlinks: boolean;
+            /** @default true */
+            scan_playlist_files: boolean;
+            /**
+             * @example [
+             *       ".flac",
+             *       ".mp3",
+             *       ".m4a"
+             *     ]
+             */
+            extensions: string[];
+            /** @default true */
+            enable_musicbrainz: boolean;
+            /** @default true */
+            enable_acoustid: boolean;
+            /** @default true */
+            enable_discogs: boolean;
+            /**
+             * Format: float
+             * @default 0.85
+             */
+            match_confidence_threshold: number;
+            /** @default en */
+            metadata_language: string;
+            /**
+             * @example [
+             *       "embedded",
+             *       "folder",
+             *       "caa",
+             *       "discogs",
+             *       "theaudiodb"
+             *     ]
+             */
+            album_art_priority: string[];
+            /**
+             * @example [
+             *       "theaudiodb",
+             *       "fanart",
+             *       "lastfm"
+             *     ]
+             */
+            artist_image_priority: string[];
+            /**
+             * @example [
+             *       "flac",
+             *       "alac",
+             *       "wav",
+             *       "aiff",
+             *       "opus",
+             *       "ogg",
+             *       "aac",
+             *       "mp3"
+             *     ]
+             */
+            format_preference: string[];
+        };
+        LibrarySettingsWrite: {
+            scan_on_create?: boolean;
+            watch_for_changes?: boolean;
+            scan_schedule?: string | null;
+            follow_symlinks?: boolean;
+            scan_playlist_files?: boolean;
+            extensions?: string[];
+            enable_musicbrainz?: boolean;
+            enable_acoustid?: boolean;
+            enable_discogs?: boolean;
+            /** Format: float */
+            match_confidence_threshold?: number;
+            metadata_language?: string;
+            album_art_priority?: string[];
+            artist_image_priority?: string[];
+            format_preference?: string[];
+        };
+        ScanRun: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            library_id: string;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            finished_at?: string | null;
+            /** @enum {string} */
+            status: "running" | "completed" | "failed";
+            files_scanned: number;
+            files_added: number;
+            files_updated: number;
+            files_removed: number;
+            files_unchanged: number;
+            files_errored: number;
+            total_files: number;
+            /**
+             * Format: float
+             * @description Computed. 0–100. Null when total_files is 0.
+             */
+            pct_complete?: number | null;
+            error?: string | null;
+        };
+        Album: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            edition_notes?: string | null;
+            /** @example 2011-09-12 */
+            release_date?: string | null;
+            label_name?: string | null;
+            /** @enum {string|null} */
+            release_type: "album" | "ep" | "single" | "compilation" | "live" | "remix" | "other" | null;
+            /** Format: uuid */
+            release_group_id: string;
+            /** Format: uuid */
+            primary_artist_id?: string | null;
+            primary_artist_name?: string | null;
+            is_compilation: boolean;
+            /** @description SHA-256 hex hash. Serve via `GET /art/{hash}`. */
+            cover_art_hash?: string | null;
+        };
+        AlbumTrack: {
+            /** Format: uuid */
+            track_id: string;
+            /** Format: uuid */
+            track_file_id?: string | null;
+            disc_number: number;
+            position: number;
+            title: string;
+            duration_ms?: number | null;
+            /** @example flac */
+            format?: string | null;
+            codec?: string | null;
+            is_lossless: boolean;
+            is_preferred: boolean;
+            /** @enum {string} */
+            match_source: "mbid_tag" | "mb_fuzzy" | "discogs_tag" | "discogs_fuzzy" | "acoustid" | "raw";
+            /** Format: float */
+            match_confidence: number;
+            /** @description Number of track_files for this track in the library. */
+            version_count?: number;
+        };
+        AlbumDetail: components["schemas"]["Album"] & {
+            country?: string | null;
+            catalog_number?: string | null;
+            total_discs?: number | null;
+            tracks: components["schemas"]["AlbumTrack"][];
+            pagination: components["schemas"]["Pagination"];
+        };
+        Artist: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            sort_name?: string | null;
+            mbid?: string | null;
+            country?: string | null;
+            release_count?: number;
+            track_count?: number;
+        };
+        ArtistDetail: components["schemas"]["Artist"] & {
+            bio?: string | null;
+            begin_year?: number | null;
+            end_year?: number | null;
+            releases: components["schemas"]["Album"][];
+            pagination: components["schemas"]["Pagination"];
+        };
+        Track: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            duration_ms?: number | null;
+            format?: string | null;
+            codec?: string | null;
+            is_lossless?: boolean | null;
+            /** Format: uuid */
+            primary_artist_id?: string | null;
+            primary_artist_name?: string | null;
+            /** Format: uuid */
+            release_id?: string | null;
+            release_title?: string | null;
+            /** @enum {string} */
+            match_source: "mbid_tag" | "mb_fuzzy" | "discogs_tag" | "discogs_fuzzy" | "acoustid" | "raw";
+            /** Format: float */
+            match_confidence: number;
+        };
+        Playlist: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description?: string | null;
+            track_count: number;
+            is_public: boolean;
+        };
+        PlaylistTrack: {
+            position: number;
+            /** Format: uuid */
+            track_id: string;
+            title: string;
+            duration_ms?: number | null;
+            format?: string | null;
+            codec?: string | null;
+            is_lossless?: boolean | null;
+            is_preferred?: boolean | null;
+        };
+        PlaylistDetail: components["schemas"]["Playlist"] & {
+            tracks: components["schemas"]["PlaylistTrack"][];
+            pagination: components["schemas"]["Pagination"];
+        };
+        SearchResultGroup: {
+            total: number;
+            pagination?: components["schemas"]["Pagination"];
+        };
+        SearchResults: {
+            query: string;
+            albums: components["schemas"]["SearchResultGroup"] & {
+                data?: components["schemas"]["Album"][];
+            };
+            artists: components["schemas"]["SearchResultGroup"] & {
+                data?: components["schemas"]["Artist"][];
+            };
+            tracks: components["schemas"]["SearchResultGroup"] & {
+                data?: components["schemas"]["Track"][];
+            };
         };
         Error: {
             error: {
@@ -320,7 +852,10 @@ export interface components {
             };
         };
     };
-    parameters: never;
+    parameters: {
+        Page: number;
+        Limit: number;
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -602,6 +1137,425 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    getLibrarySettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                libraryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibrarySettings"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    putLibrarySettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                libraryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibrarySettingsWrite"];
+            };
+        };
+        responses: {
+            /** @description Updated settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibrarySettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Invalid setting value (e.g. bad cron expression). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    triggerScan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                libraryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scan accepted. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        scan_run_id: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listScanRuns: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path: {
+                libraryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scan history. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ScanRun"][];
+                        pagination: components["schemas"]["Pagination"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getScanRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                libraryId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scan run detail. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanRun"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAlbums: {
+        parameters: {
+            query: {
+                library_id: string;
+                artist_id?: string;
+                sort?: "date" | "title" | "added";
+                compilations_only?: boolean;
+                /** @description Collapse editions of the same abstract album into one entry. */
+                group_by_release_group?: boolean;
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated album list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Album"][];
+                        pagination: components["schemas"]["Pagination"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getAlbum: {
+        parameters: {
+            query: {
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+                library_id: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Album detail with tracks. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlbumDetail"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listArtists: {
+        parameters: {
+            query: {
+                library_id: string;
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated artist list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Artist"][];
+                        pagination: components["schemas"]["Pagination"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getArtist: {
+        parameters: {
+            query: {
+                library_id: string;
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Artist with bio and paginated discography. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtistDetail"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listTracks: {
+        parameters: {
+            query: {
+                library_id: string;
+                album_id?: string;
+                artist_id?: string;
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated track list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Track"][];
+                        pagination: components["schemas"]["Pagination"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    listPlaylists: {
+        parameters: {
+            query: {
+                library_id: string;
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated playlist list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Playlist"][];
+                        pagination: components["schemas"]["Pagination"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getPlaylist: {
+        parameters: {
+            query: {
+                library_id: string;
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Playlist with paginated tracklist. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaylistDetail"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    search: {
+        parameters: {
+            query: {
+                q: string;
+                library_id: string;
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Grouped search results. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResults"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getArt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SHA-256 hex digest of the image file (64 lowercase hex chars). */
+                hash: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Image file. */
+            200: {
+                headers: {
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                    "image/webp": string;
+                };
+            };
+            /** @description Hash not found or invalid format. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     me: {
