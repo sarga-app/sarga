@@ -1,0 +1,104 @@
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: var(--s-2);
+  padding: 0 0 var(--s-3);
+  margin-bottom: var(--s-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.tabBtn {
+  padding: 4px var(--s-3);
+  border-radius: 20px;
+  border: none;
+  background: transparent;
+  color: var(--fg-3);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: background var(--dur-micro) var(--ease), color var(--dur-micro) var(--ease);
+}
+
+.tabBtn:hover:not(.tabActive) {
+  background: var(--bg-2);
+  color: var(--fg-2);
+}
+
+.tabActive {
+  background: var(--bg-3);
+  color: var(--fg-1);
+  font-weight: 600;
+}
+
+.body {
+  /* the modal already provides padding & scrolling */
+}
+
+/* Toggle row layout (the Toggle widget itself lives in components/ui/toggle) */
+.toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.toggleLabel {
+  font-size: 14px;
+  color: var(--fg-1);
+}
+
+/* Field row */
+.field {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Priority list */
+.priorityList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.priorityItem {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 6px var(--s-2);
+  background: var(--bg-1);
+  border-radius: var(--r-input);
+}
+
+.priorityItemName {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-2);
+}
+
+.priorityBtn {
+  display: flex;
+  background: transparent;
+  border: none;
+  color: var(--fg-3);
+  cursor: pointer;
+  padding: 2px;
+  transition: color var(--dur-micro) var(--ease);
+}
+
+.priorityBtn:hover:not(:disabled) { color: var(--fg-1); }
+.priorityBtn:disabled { color: var(--fg-4); cursor: default; }
+
+.artworkSection {
+  margin-bottom: var(--s-5);
+}
+
+.sectionLabel {
+  margin: 0 0 var(--s-3);
+  font-size: 13px;
+  color: var(--fg-3);
+  font-weight: 600;
+}
