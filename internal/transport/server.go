@@ -113,7 +113,7 @@ func Run(ctx context.Context, cfg *config.Config, dbInst *db.DB) error {
 	} else {
 		watchCtx, watchCancel := context.WithCancel(ctx)
 		defer watchCancel()
-		startWatcher(watchCtx, watcher, enrichCtx, dbInst)
+		startWatcher(watchCtx, watcher, dbInst)
 	}
 
 	srv := &http.Server{
@@ -196,8 +196,8 @@ func resolveMasterKey(dirs *datadir.Dirs) (*crypto.MasterKey, error) {
 	return crypto.LoadOrGenerate(path)
 }
 
-func startWatcher(ctx context.Context, w *library.Watcher, dbCtx context.Context, dbInst *db.DB) {
-	pathMap, err := buildPathMap(dbCtx, dbInst)
+func startWatcher(ctx context.Context, w *library.Watcher, dbInst *db.DB) {
+	pathMap, err := buildPathMap(ctx, dbInst)
 	if err != nil {
 		slog.Error("failed to build watcher path map", "err", err)
 		return
