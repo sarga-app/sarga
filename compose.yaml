@@ -11,6 +11,7 @@ services:
       - "8080:8080"
     volumes:
       - sarga-data:/data
+      - /Users/rohan/Music/Library/Sorted/FLAC:/mnt/music
 
 volumes:
   sarga-data:

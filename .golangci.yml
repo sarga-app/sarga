@@ -62,6 +62,7 @@ linters:
       exclude-functions:
         - io.Copy
         - (io.Closer).Close
+        - (*os.File).Close
         - (net/http.ResponseWriter).Write
 
     gosec:
@@ -140,6 +141,12 @@ linters:
       - linters:
           - govet
         text: "printf"
+
+      # Providers return (nil, nil) to signal "not found, not an error" — intentional.
+      # The enricher always checks result == nil before use.
+      - path: internal/domain/library/provider_
+        linters:
+          - nilnil
 
 formatters:
   enable:

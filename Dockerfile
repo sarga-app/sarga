@@ -5,10 +5,18 @@ FROM node:22-alpine AS frontend
 
 RUN corepack enable
 
+WORKDIR /src/web
+
+# Install deps first — cached until package files change, not on every source edit.
+COPY web/package.json web/pnpm-lock.yaml ./
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --ignore-scripts
+
+# Copy source and build. Source changes reuse the install cache layer above.
+COPY web/ ./
 WORKDIR /src
-COPY web/ web/
 RUN mkdir -p internal/transport/routes/web/dist && \
-    cd web && pnpm install --frozen-lockfile --ignore-scripts && pnpm build
+    cd web && pnpm build
 
 # ─── backend build ───────────────────────────────────────────────────────────
 FROM golang:1.26.3-alpine AS build
