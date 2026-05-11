@@ -1,0 +1,94 @@
+.hero {
+  display: flex;
+  gap: var(--s-6);
+  margin-bottom: var(--s-7);
+  align-items: flex-start;
+}
+
+.artBox {
+  width: 280px;
+  height: 280px;
+  flex-shrink: 0;
+  background: var(--bg-3);
+  border-radius: var(--r-art);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.meta {
+  flex: 1;
+  padding-top: var(--s-2);
+  min-width: 0;
+}
+
+.editionBadge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px var(--s-2);
+  background: var(--bg-2);
+  color: var(--fg-3);
+  border-radius: var(--r-input);
+  margin-bottom: var(--s-3);
+}
+
+.title {
+  font-family: var(--font-editorial);
+  font-size: 28px;
+  font-weight: 500;
+  color: var(--fg-1);
+  margin: 0 0 var(--s-2);
+  line-height: 1.2;
+}
+
+.artistLink {
+  display: block;
+  font-size: 16px;
+  color: var(--fg-2);
+  margin-bottom: var(--s-4);
+  text-decoration: none;
+  border-bottom: none;
+  transition: color var(--dur-micro) var(--ease);
+}
+
+.artistLink:hover {
+  color: var(--fg-1);
+}
+
+.artistText {
+  font-size: 16px;
+  color: var(--fg-2);
+  margin: 0 0 var(--s-4);
+}
+
+.metaRow {
+  display: flex;
+  gap: var(--s-4);
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--s-3);
+}
+
+.metaMono {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--fg-3);
+}
+
+.labelLine {
+  font-size: 13px;
+  color: var(--fg-3);
+  margin: 0 0 var(--s-3);
+}
+
+.releaseBadge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px var(--s-2);
+  background: var(--bg-2);
+  color: var(--fg-3);
+  border-radius: var(--r-input);
+  text-transform: capitalize;
+}

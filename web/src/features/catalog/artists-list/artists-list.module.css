@@ -1,0 +1,114 @@
+.wrap {
+  display: flex;
+  position: relative;
+}
+
+.list {
+  flex: 1;
+  min-width: 0;
+  padding-right: var(--s-7);
+}
+
+.letterHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-4) 0 var(--s-2);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 1;
+}
+
+.letterLabel {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+  min-width: 16px;
+}
+
+.letterRule {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.artistRow {
+  display: flex;
+  align-items: center;
+  padding: 11px var(--s-2);
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+  border-left: none;
+  cursor: pointer;
+  transition: background var(--dur-micro) var(--ease);
+}
+
+.artistRow:hover {
+  background: var(--bg-1);
+}
+
+.artistName {
+  flex: 1;
+  font-size: 15px;
+  color: var(--fg-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.artistMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex-shrink: 0;
+  margin-left: var(--s-4);
+}
+
+.artistCountry {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--fg-4);
+}
+
+.artistCount {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-3);
+}
+
+/* Letter jump nav */
+.jumpNav {
+  position: fixed;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  z-index: 10;
+}
+
+.jumpBtn {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--fg-4);
+  font-family: var(--font-ui);
+  font-size: 10px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: color var(--dur-micro) var(--ease);
+}
+
+.jumpBtn:hover {
+  color: var(--accent);
+}
