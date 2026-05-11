@@ -1,0 +1,8 @@
+.center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Fill (most of) the visible content area between topbar and player bar
+     so the spinner sits at the optical centre, not pinned near the top. */
+  min-height: calc(100vh - 220px);
+}

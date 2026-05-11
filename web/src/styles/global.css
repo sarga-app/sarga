@@ -4,18 +4,16 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Self-hosted fonts — no CDN pings */
+/* Self-hosted fonts — no CDN pings.
+   Subset: only weights actually used (400/500/600). Add more here only if
+   `grep -r "font-weight:" src` shows a new weight. */
 @import "@fontsource/ibm-plex-sans/400.css";
 @import "@fontsource/ibm-plex-sans/500.css";
 @import "@fontsource/ibm-plex-sans/600.css";
-@import "@fontsource/ibm-plex-sans/700.css";
 @import "@fontsource/ibm-plex-mono/400.css";
-@import "@fontsource/ibm-plex-mono/500.css";
 @import "@fontsource/newsreader/400.css";
 @import "@fontsource/newsreader/400-italic.css";
 @import "@fontsource/newsreader/500.css";
-@import "@fontsource/newsreader/600.css";
-@import "@fontsource/newsreader/700.css";
 
 /* Dark mode variant for shadcn components (we use .surface-nocturne, but
    shadcn components use .dark — align them so shadcn primitives work) */
@@ -111,6 +109,7 @@
 
 /* Our design system — imported LAST so our tokens win over shadcn's where names overlap */
 @import "./tokens.css";
+@import "./forms.css";
 
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -118,4 +117,13 @@ html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
+}
+
+@keyframes page-enter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

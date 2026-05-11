@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 80" role="img" aria-labelledby="sarga-wordmark-title">
+  <title id="sarga-wordmark-title">Sarga</title>
+  <defs>
+    <style>
+      .wm-text {
+        font-family: 'Newsreader', 'Iowan Old Style', 'Hoefler Text', Georgia, serif;
+        font-size: 72px;
+        font-weight: 500;
+        letter-spacing: -0.015em;
+        fill: currentColor;
+      }
+      .wm-bar { fill: #B31B1B; }
+    </style>
+  </defs>
+  <text x="0" y="60" class="wm-text">sarga</text>
+  <rect x="170" y="14" width="7" height="56" class="wm-bar" />
+  <rect x="181" y="14" width="7" height="56" class="wm-bar" />
+</svg>

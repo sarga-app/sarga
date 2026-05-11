@@ -1,0 +1,14 @@
+.spinner {
+  display: inline-block;
+  border-radius: 50%;
+  border-style: solid;
+  /* Higher-contrast track + opaque accent on top so the rotation reads
+     clearly on both Paper and Nocturne surfaces. */
+  border-color: color-mix(in srgb, var(--fg-1) 22%, transparent);
+  border-top-color: var(--fg-1);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

@@ -58,8 +58,8 @@
   --umber-4: #A39988;
 
   /* Accents */
-  --accent-vinyl: #B0301A;
-  --accent-ember: #C8501F;
+  --accent-vinyl: #B31B1B;
+  --accent-ember: #B31B1B;
   --danger-fg:    #9F2C1F;
 
   /* Status */
@@ -99,6 +99,11 @@
   --r-sheet: 12px;
   --r-art:   0;
 
+  /* Layout — sidebar width, player bar dimensions */
+  --sidebar-w: 232px;
+  --player-h:  76px;
+  --player-gap: 16px;
+
   /* Type families */
   --font-ui:        'IBM Plex Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-editorial: 'Newsreader', 'Iowan Old Style', Georgia, serif;
@@ -136,7 +141,7 @@
   --fg-4:          var(--bone-4);
   --border:        var(--hair-on-lacq);
   --border-strong: var(--hair-on-lacq-2);
-  --accent:        var(--accent-ember);
+  --accent:        var(--accent-vinyl);
   --on-accent:     var(--lacquer-0);
   color-scheme: dark;
 }
@@ -152,7 +157,7 @@
   --fg-4:          var(--cream-4);
   --border:        var(--hair-on-nocturne);
   --border-strong: var(--hair-on-nocturne-2);
-  --accent:        var(--accent-ember);
+  --accent:        var(--accent-vinyl);
   --on-accent:     var(--nocturne-0);
   color-scheme: dark;
 }

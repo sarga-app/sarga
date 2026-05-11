@@ -1,0 +1,32 @@
+.track {
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--bg-3);
+  position: relative;
+  flex-shrink: 0;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: background var(--dur-micro) var(--ease);
+}
+
+.trackOn {
+  background: var(--accent);
+}
+
+.thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  transition: left var(--dur-micro) var(--ease);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.thumbOn {
+  left: 18px;
+}

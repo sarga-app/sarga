@@ -1,36 +1,18 @@
+import WordmarkSvg from './logo-wordmark.svg?react'
+
 interface Props {
   height?: number
   style?: React.CSSProperties
   className?: string
 }
 
-export function LogoWordmark({ height = 28, style, className }: Props) {
-  const width = (320 / 80) * height
-
+export function LogoWordmark({ height = 32, style, className }: Props) {
   return (
-    <svg
-      viewBox="0 0 320 80"
-      width={width}
+    <WordmarkSvg
       height={height}
-      style={style}
+      width={(192 / 80) * height}
+      style={{ color: 'var(--fg-1)', ...style }}
       className={className}
-      aria-label="Sarga"
-    >
-      <text
-        x="0"
-        y="60"
-        style={{
-          fontFamily: 'var(--font-editorial)',
-          fontSize: 72,
-          fontWeight: 500,
-          fill: 'var(--fg-1)',
-          letterSpacing: '-0.015em',
-        }}
-      >
-        sarga
-      </text>
-      <rect x="178" y="14" width="3" height="48" style={{ fill: 'var(--accent)' }} />
-      <rect x="186" y="14" width="3" height="48" style={{ fill: 'var(--accent)' }} />
-    </svg>
+    />
   )
 }

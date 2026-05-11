@@ -1,0 +1,46 @@
+/* ============================================================
+   Form primitives — shared across login, library page, settings,
+   and any other form input. Plain `.input` class.
+   ============================================================ */
+
+.input {
+  width: 100%;
+  padding: 8px var(--s-3);
+  background: var(--bg-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-input);
+  color: var(--fg-1);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color var(--dur-micro) var(--ease);
+}
+
+.input:focus {
+  border-color: var(--accent);
+}
+
+.input--lg {
+  height: 44px;
+  font-size: 15px;
+}
+
+.input--mono {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 6px var(--s-3);
+}
+
+.input--textarea {
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.field-label {
+  display: block;
+  font-size: 13px;
+  color: var(--fg-3);
+  margin-bottom: var(--s-2);
+}

@@ -1,0 +1,14 @@
+.badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 5px;
+  background: var(--bg-2);
+  color: var(--fg-3);
+  border-radius: var(--r-input);
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+.highlight {
+  color: var(--accent);
+}

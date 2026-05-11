@@ -1,0 +1,62 @@
+.tile {
+  display: block;
+  text-decoration: none;
+  border-bottom: none;
+  cursor: pointer;
+}
+
+.artWrap {
+  margin-bottom: var(--s-3);
+  border-radius: var(--r-art);
+  overflow: hidden;
+  transition: box-shadow var(--dur-ui) var(--ease), transform var(--dur-ui) var(--ease);
+  will-change: transform;
+}
+
+.tile:hover .artWrap {
+  transform: scale(1.025);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+}
+
+.tile:hover .title { color: var(--accent); }
+
+.placeholder {
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--bg-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.title {
+  font-family: var(--font-editorial);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  color: var(--fg-1);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.25;
+  margin-bottom: 4px;
+  transition: color var(--dur-micro) var(--ease);
+}
+
+.artist {
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  color: var(--fg-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 2px;
+}
+
+.year {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--fg-3);
+  letter-spacing: 0.02em;
+}

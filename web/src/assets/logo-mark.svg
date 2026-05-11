@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="sarga-mark-title">
+  <title id="sarga-mark-title">Sarga</title>
+  <rect width="64" height="64" rx="8" fill="#15161A" />
+  <rect x="20" y="14" width="4" height="36" fill="#FCFCFD" />
+  <rect x="30" y="14" width="4" height="36" fill="#B31B1B" />
+  <rect x="40" y="14" width="4" height="36" fill="#B31B1B" />
+</svg>
