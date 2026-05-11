@@ -108,23 +108,12 @@ func Run(ctx context.Context, cfg *config.Config, dbInst *db.DB) error {
 	scheduler.Start()
 	defer scheduler.Stop()
 
-	if watcher != nil {
+	if watcher == nil {
+		slog.Info("watcher: disabled (fsnotify unavailable)")
+	} else {
 		watchCtx, watchCancel := context.WithCancel(ctx)
 		defer watchCancel()
-		pathMap, err := buildPathMap(enrichCtx, dbInst)
-		if err != nil {
-			slog.Error("failed to build watcher path map", "err", err)
-		} else {
-			for root := range pathMap {
-				if err := watcher.Watch(root); err != nil {
-					slog.Error("watcher: failed to watch path", "path", root, "err", err)
-				}
-			}
-			slog.Info("watcher: monitoring library roots", "count", len(pathMap))
-			go watcher.Run(watchCtx, pathMap)
-		}
-	} else {
-		slog.Info("watcher: disabled (fsnotify unavailable)")
+		startWatcher(watchCtx, watcher, enrichCtx, dbInst)
 	}
 
 	srv := &http.Server{
@@ -205,6 +194,21 @@ func resolveMasterKey(dirs *datadir.Dirs) (*crypto.MasterKey, error) {
 		return nil, err
 	}
 	return crypto.LoadOrGenerate(path)
+}
+
+func startWatcher(ctx context.Context, w *library.Watcher, dbCtx context.Context, dbInst *db.DB) {
+	pathMap, err := buildPathMap(dbCtx, dbInst)
+	if err != nil {
+		slog.Error("failed to build watcher path map", "err", err)
+		return
+	}
+	for root := range pathMap {
+		if err := w.Watch(root); err != nil {
+			slog.Error("watcher: failed to watch path", "path", root, "err", err)
+		}
+	}
+	slog.Info("watcher: monitoring library roots", "count", len(pathMap))
+	go w.Run(ctx, pathMap)
 }
 
 func resolveJWTSecret(configured string, dirs *datadir.Dirs) ([]byte, error) {
