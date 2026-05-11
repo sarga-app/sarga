@@ -1,0 +1,19 @@
+.bar {
+  position: fixed;
+  left: var(--player-gap);
+  right: var(--player-gap);
+  bottom: var(--player-gap);
+  height: var(--player-h);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--s-5);
+  z-index: 100;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.20);
+}
+
+.placeholder {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--fg-3);
+}
