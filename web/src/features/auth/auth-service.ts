@@ -1,7 +1,7 @@
-import { api } from '@/services/api'
+import { api, authApi } from '@/services/api'
 
 export async function login(username: string, password: string) {
-  const { data, error } = await api.POST('/auth/login', {
+  const { data, error } = await authApi.POST('/auth/login', {
     body: { username, password },
   })
   if (error) {
@@ -20,11 +20,5 @@ export async function me(accessToken: string) {
 }
 
 export async function logout() {
-  await api.POST('/auth/logout', {})
-}
-
-export async function refresh() {
-  const { data, error } = await api.POST('/auth/refresh', {})
-  if (error) throw new Error('Session expired')
-  return data
+  await authApi.POST('/auth/logout', {})
 }

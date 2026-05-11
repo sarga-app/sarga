@@ -1,0 +1,135 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-6) var(--s-5);
+  background: radial-gradient(ellipse at 50% -10%, color-mix(in srgb, var(--accent-vinyl) 18%, var(--bg)), var(--bg) 70%);
+}
+
+.brand {
+  margin-bottom: var(--s-8);
+  user-select: none;
+}
+
+.form {
+  width: 100%;
+  max-width: 360px;
+}
+
+.heading {
+  font-family: var(--font-editorial);
+  font-size: 28px;
+  font-weight: 500;
+  font-style: italic;
+  color: var(--fg-1);
+  margin: 0 0 var(--s-6);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.fieldLabel {
+  cursor: default;
+}
+
+.passwordWrap {
+  position: relative;
+}
+
+.input {
+  height: 44px;
+  background: var(--bg-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-input);
+  padding: 0 var(--s-3);
+  color: var(--fg-1);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  outline: none;
+  width: 100%;
+  transition: border-color var(--dur-micro) var(--ease);
+}
+
+.input:focus {
+  border-color: var(--accent);
+}
+
+.inputPassword {
+  padding-right: 42px;
+}
+
+.eyeBtn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--fg-3);
+  padding: 4px;
+  transition: color var(--dur-micro) var(--ease);
+}
+
+.eyeBtn:hover {
+  color: var(--fg-1);
+}
+
+.error {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--danger);
+  margin: 0;
+  padding: var(--s-2) var(--s-3);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  border-radius: var(--r-input);
+  border: 1px solid color-mix(in srgb, var(--danger) 20%, transparent);
+}
+
+.submitBtn {
+  margin-top: var(--s-2);
+  height: 46px;
+  width: 100%;
+  background: var(--fg-1);
+  color: var(--bg);
+  border: none;
+  border-radius: var(--r-input);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--dur-micro) var(--ease);
+  letter-spacing: -0.01em;
+}
+
+.submitBtn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.submitBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.footer {
+  margin-top: var(--s-6);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-4);
+  letter-spacing: 0.04em;
+}
