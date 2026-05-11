@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 
 	"golang.org/x/crypto/hkdf"
@@ -44,6 +45,7 @@ func generate(path string) (*MasterKey, error) {
 	if err := os.WriteFile(path, k[:], 0o600); err != nil {
 		return nil, fmt.Errorf("crypto: write master key: %w", err)
 	}
+	slog.Info("master key: generated and persisted", "path", path)
 	return &k, nil
 }
 
