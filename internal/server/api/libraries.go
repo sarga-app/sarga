@@ -33,6 +33,7 @@ func (a *API) mountLibrariesRoutes(r chi.Router) {
 		r.Get("/libraries/{libraryId}", withLibraryID(a.getLibrary))
 
 		r.Post("/libraries/{libraryId}/scan", withLibraryID(a.triggerScan))
+		r.Post("/libraries/{libraryId}/scan/cancel", withLibraryID(a.cancelScan))
 		r.Get("/libraries/{libraryId}/scan-runs", withLibraryID(a.listScanRuns))
 		r.Get("/libraries/{libraryId}/scan-runs/{runId}", withLibraryAndRunID(a.getScanRun))
 		r.Get("/libraries/{libraryId}/settings", withLibraryID(a.getLibrarySettings))
@@ -348,6 +349,22 @@ func (a *API) triggerScan(w http.ResponseWriter, r *http.Request, libraryID uuid
 	writeJSON(w, http.StatusAccepted, map[string]any{})
 }
 
+func (a *API) cancelScan(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID) {
+	if a.scanner == nil {
+		writeError(w, http.StatusServiceUnavailable, "scanner_not_ready", "scanner not initialised")
+		return
+	}
+	if err := a.scanner.Cancel(r.Context(), libraryID.String()); err != nil {
+		if errors.Is(err, scanner.ErrNoActiveScan) {
+			writeError(w, http.StatusNotFound, "no_active_scan", "no scan is currently running for this library")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "cancel_failed", "failed to cancel scan")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (a *API) listScanRuns(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID) {
 	page, limit := parsePage(r)
 	offset := int64((page - 1) * limit)
@@ -410,9 +427,21 @@ func (a *API) getScanRun(w http.ResponseWriter, r *http.Request, libraryID, runI
 		writeError(w, http.StatusNotFound, "not_found", "scan run not found")
 		return
 	}
-	writeJSON(w, http.StatusOK, scanRunToMap(row.ID, row.LibraryID, row.StartedAt, row.FinishedAt,
+	resp := scanRunToMap(row.ID, row.LibraryID, row.StartedAt, row.FinishedAt,
 		row.Status, row.FilesScanned, row.FilesAdded, row.FilesUpdated, row.FilesRemoved,
-		row.FilesUnchanged, row.FilesErrored, row.TotalFiles, row.Error))
+		row.FilesUnchanged, row.FilesErrored, row.TotalFiles, row.Error)
+	if row.Status == "running" && a.scanner != nil {
+		if live := a.scanner.LiveState(row.ID); live != nil {
+			resp["current_folder"] = live.CurrentFolder
+			resp["files_scanned"] = live.Total
+			resp["files_added"] = live.Added
+			resp["files_updated"] = live.Updated
+			resp["files_unchanged"] = live.Unchanged
+			resp["files_removed"] = live.Removed
+			resp["files_errored"] = live.Errored
+		}
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (a *API) getLibrarySettings(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID) {

@@ -333,6 +333,28 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /libraries/{libraryId}/scan/cancel:
+    parameters:
+      - name: libraryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [scan]
+      operationId: cancelScan
+      summary: Cancel the active scan
+      description: |
+        Signals the currently-running scan for this library to stop. The
+        scan_runs row is finalised with status='cancelled'. The cursor
+        (last_completed_folder) is preserved, so a subsequent trigger
+        resumes from where it left off rather than restarting.
+      responses:
+        '204': { description: Cancellation signal sent. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: No scan is currently running for this library.
+
   /libraries/{libraryId}/scan-runs:
     parameters:
       - name: libraryId
@@ -927,7 +949,7 @@ components:
         library_id: { type: string, format: uuid }
         started_at: { type: string, format: date-time }
         finished_at: { type: string, format: date-time, nullable: true }
-        status: { type: string, enum: [running, completed, failed] }
+        status: { type: string, enum: [running, completed, failed, cancelled] }
         files_scanned: { type: integer }
         files_added: { type: integer }
         files_updated: { type: integer }
@@ -941,6 +963,14 @@ components:
           description: Computed. 0–100. Null when total_files is 0.
           nullable: true
         error: { type: string, nullable: true }
+        current_folder:
+          type: string
+          nullable: true
+          description: |
+            Only populated when `status = 'running'`. The folder currently
+            being persisted by the scanner. Sourced from in-memory live
+            state, not the DB, so it reflects the latest tick (sub-second
+            staleness).
 
     # ── Catalog: albums ───────────────────────────────────────────────────────
 
