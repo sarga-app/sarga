@@ -33,16 +33,11 @@ type DBEntry struct {
 	SizeBytes int64
 }
 
-// FolderEvent groups every audio file the reconciler saw under one directory.
-// Files appear in deterministic order (lexical by path). Removed files do not
-// belong to any folder and are returned separately by ReconcileFolders.
 type FolderEvent struct {
 	Dir   string
 	Files []FileEvent
 }
 
-// HasWork reports whether the folder contains any file that needs processing
-// (i.e. a file that's new or changed since the last scan).
 func (f FolderEvent) HasWork() bool {
 	for _, e := range f.Files {
 		if e.Kind == EventAdded || e.Kind == EventChanged {
@@ -77,15 +72,6 @@ func NewReconciler(rq *queries.Queries) *Reconciler {
 	return &Reconciler{rq: rq}
 }
 
-// ReconcileFolders walks the library root, groups every audio file by its
-// parent directory, and returns one FolderEvent per directory that contained
-// at least one audio file. Files in the DB whose path wasn't seen on disk are
-// returned in `removed`.
-//
-// This is synchronous on purpose: the parallelism we want lives in the
-// scanner pipeline (parallel hash/tag-extract → serial per-folder tx).
-// Streaming events during the walk added contention without buying anything,
-// and the entire reconciliation footprint at 100k files is ~15MB of paths.
 func (r *Reconciler) ReconcileFolders(
 	ctx context.Context,
 	libraryID, root string,

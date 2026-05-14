@@ -193,8 +193,6 @@ func (s *Scanner) runScan(
 	return st, nil
 }
 
-// processPath walks one library root, groups files by folder, and runs the
-// pipeline: parallel hash+tag-extract per folder → serial per-folder tx.
 func (s *Scanner) processPath(
 	ctx context.Context,
 	libraryID, root string,
@@ -210,8 +208,6 @@ func (s *Scanner) processPath(
 	slog.Debug("scan: walk", "elapsed", time.Since(walkStart),
 		"folders", len(folders), "removed", len(removed))
 
-	// Account for stat-clean files and removed files now; the pipeline below
-	// only touches folders with actual work.
 	for _, f := range folders {
 		for _, ev := range f.Files {
 			st.mu.Lock()
@@ -284,8 +280,6 @@ func (s *Scanner) processPath(
 	return nil
 }
 
-// preparedFolder is the output of phase 1a (parallel hash + tag extract +
-// cover-art resolve). Phase 1b (persistFolder) consumes it inside one tx.
 type preparedFolder struct {
 	dir         string
 	files       []preparedFile
@@ -793,7 +787,6 @@ func (st *scanProgress) recordErr() {
 	st.mu.Unlock()
 }
 
-// maybeFlush assumes st.mu is held by the caller.
 func (st *scanProgress) maybeFlush(ctx context.Context, wq *queries.Queries) {
 	st.total++
 	if st.total-st.flushed.total < progressFlushEvery {
