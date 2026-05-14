@@ -124,6 +124,10 @@ func (s *Scanner) runScan(
 		slog.Error("scan: mark missing tracks", "library_id", libraryID, "err", err)
 	}
 
+	if _, err := pruneOrphans(ctx, s.db); err != nil {
+		slog.Error("scan: gc", "library_id", libraryID, "err", err)
+	}
+
 	pr.flushFinal(ctx, s.wq)
 
 	if _, err := s.db.ExecContext(ctx,
