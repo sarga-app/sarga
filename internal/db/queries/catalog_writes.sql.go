@@ -9,6 +9,31 @@ import (
 	"context"
 )
 
+const findMissingTrackFileByHash = `-- name: FindMissingTrackFileByHash :one
+SELECT id, track_id, relative_path
+FROM track_files
+WHERE library_id = ? AND content_hash = ? AND missing_since IS NOT NULL
+LIMIT 1
+`
+
+type FindMissingTrackFileByHashParams struct {
+	LibraryID   string
+	ContentHash []byte
+}
+
+type FindMissingTrackFileByHashRow struct {
+	ID           string
+	TrackID      string
+	RelativePath string
+}
+
+func (q *Queries) FindMissingTrackFileByHash(ctx context.Context, arg FindMissingTrackFileByHashParams) (FindMissingTrackFileByHashRow, error) {
+	row := q.db.QueryRowContext(ctx, findMissingTrackFileByHash, arg.LibraryID, arg.ContentHash)
+	var i FindMissingTrackFileByHashRow
+	err := row.Scan(&i.ID, &i.TrackID, &i.RelativePath)
+	return i, err
+}
+
 const getArtistByMBID = `-- name: GetArtistByMBID :one
 
 SELECT id, mbid, name, sort_name, country, bio, begin_year, end_year,
@@ -750,6 +775,33 @@ func (q *Queries) LinkTrackArtist(ctx context.Context, arg LinkTrackArtistParams
 		arg.ArtistID,
 		arg.Position,
 		arg.Role,
+	)
+	return err
+}
+
+const repathTrackFile = `-- name: RepathTrackFile :exec
+UPDATE track_files SET
+    relative_path   = ?,
+    file_size_bytes = ?,
+    mtime           = ?,
+    missing_since   = NULL,
+    updated_at      = CURRENT_TIMESTAMP
+WHERE id = ?
+`
+
+type RepathTrackFileParams struct {
+	RelativePath  string
+	FileSizeBytes int64
+	Mtime         string
+	ID            string
+}
+
+func (q *Queries) RepathTrackFile(ctx context.Context, arg RepathTrackFileParams) error {
+	_, err := q.db.ExecContext(ctx, repathTrackFile,
+		arg.RelativePath,
+		arg.FileSizeBytes,
+		arg.Mtime,
+		arg.ID,
 	)
 	return err
 }

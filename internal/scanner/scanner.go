@@ -79,7 +79,8 @@ func (s *Scanner) Scan(ctx context.Context, libraryID string) error {
 		slog.Info("scan: completed",
 			"library_id", libraryID, "run_id", run.ID,
 			"total", t.Total, "added", t.Added, "updated", t.Updated,
-			"unchanged", t.Unchanged, "removed", t.Removed, "errors", t.Errored,
+			"unchanged", t.Unchanged, "moved", t.Moved,
+			"removed", t.Removed, "errors", t.Errored,
 		)
 	}
 	if err := s.wq.FinishScanRun(ctx, queries.FinishScanRunParams{

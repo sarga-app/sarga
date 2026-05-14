@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -297,6 +298,40 @@ func refreshUnchangedFile(
 	return true
 }
 
+func tryRepathByHash(
+	ctx context.Context,
+	q *queries.Queries,
+	libraryID string,
+	file preparedFile,
+	mtime string,
+) (id string, found bool, err error) {
+	row, err := q.FindMissingTrackFileByHash(ctx, queries.FindMissingTrackFileByHashParams{
+		LibraryID:   libraryID,
+		ContentHash: file.hash,
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	if rerr := q.RepathTrackFile(ctx, queries.RepathTrackFileParams{
+		RelativePath:  file.ev.AbsPath,
+		FileSizeBytes: file.ev.Info.Size(),
+		Mtime:         mtime,
+		ID:            row.ID,
+	}); rerr != nil {
+		return "", false, rerr
+	}
+	slog.Info("scan: file moved",
+		"library_id", libraryID,
+		"from", row.RelativePath,
+		"to", file.ev.AbsPath,
+		"track_file_id", row.ID,
+	)
+	return row.ID, true, nil
+}
+
 func writeTrackFile(
 	ctx context.Context,
 	q *queries.Queries,
@@ -315,6 +350,12 @@ func writeTrackFile(
 	}
 
 	if ev.Kind == EventAdded {
+		if id, ok, err := tryRepathByHash(ctx, q, libraryID, file, mtime); err != nil {
+			return "", err
+		} else if ok {
+			pr.recordMoved()
+			return id, nil
+		}
 		row, err := q.InsertTrackFile(ctx, queries.InsertTrackFileParams{
 			ID:              uuid.NewString(),
 			TrackID:         trackID,

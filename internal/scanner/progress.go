@@ -15,7 +15,7 @@ type progress struct {
 	runID string
 	found []string
 
-	total, added, updated, unchanged, errored, removed int64
+	total, added, updated, unchanged, errored, removed, moved int64
 
 	flushed struct {
 		total, added, updated, unchanged, errored, removed int64
@@ -25,6 +25,7 @@ type progress struct {
 func (p *progress) recordAdded()     { p.bump(&p.added, &p.total) }
 func (p *progress) recordUpdated()   { p.bump(&p.updated, &p.total) }
 func (p *progress) recordUnchanged() { p.bump(&p.unchanged, &p.total) }
+func (p *progress) recordMoved()     { p.bump(&p.moved, &p.total) }
 func (p *progress) recordErrored()   { p.bump(&p.errored) }
 func (p *progress) recordRemoved(n int64) {
 	p.mu.Lock()
@@ -90,7 +91,7 @@ func (p *progress) flushLocked(ctx context.Context, wq *queries.Queries) {
 }
 
 type progressTotals struct {
-	Total, Added, Updated, Unchanged, Removed, Errored int64
+	Total, Added, Updated, Unchanged, Moved, Removed, Errored int64
 }
 
 func (p *progress) totals() progressTotals {
@@ -98,7 +99,8 @@ func (p *progress) totals() progressTotals {
 	defer p.mu.Unlock()
 	return progressTotals{
 		Total: p.total, Added: p.added, Updated: p.updated,
-		Unchanged: p.unchanged, Removed: p.removed, Errored: p.errored,
+		Unchanged: p.unchanged, Moved: p.moved,
+		Removed: p.removed, Errored: p.errored,
 	}
 }
 

@@ -177,6 +177,21 @@ RETURNING
     missing_since, rg_track_gain, rg_track_peak, rg_album_gain, rg_album_peak,
     added_at, updated_at;
 
+-- name: FindMissingTrackFileByHash :one
+SELECT id, track_id, relative_path
+FROM track_files
+WHERE library_id = ? AND content_hash = ? AND missing_since IS NOT NULL
+LIMIT 1;
+
+-- name: RepathTrackFile :exec
+UPDATE track_files SET
+    relative_path   = ?,
+    file_size_bytes = ?,
+    mtime           = ?,
+    missing_since   = NULL,
+    updated_at      = CURRENT_TIMESTAMP
+WHERE id = ?;
+
 -- name: UpdateTrackFileCore :exec
 UPDATE track_files SET
     track_id        = ?,
