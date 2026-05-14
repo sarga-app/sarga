@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,6 +26,9 @@ type Scanner struct {
 	rec     *Reconciler
 	db      *sql.DB
 	matcher *Matcher
+
+	dirtyMu sync.Mutex
+	dirty   map[string]bool
 }
 
 func New(d *db.DB, art *coverart.Manager, matcher *Matcher) *Scanner {
@@ -37,7 +41,22 @@ func New(d *db.DB, art *coverart.Manager, matcher *Matcher) *Scanner {
 		rec:     NewReconciler(rq),
 		db:      d.Write(),
 		matcher: matcher,
+		dirty:   make(map[string]bool),
 	}
+}
+
+func (s *Scanner) markDirty(libraryID string) {
+	s.dirtyMu.Lock()
+	s.dirty[libraryID] = true
+	s.dirtyMu.Unlock()
+}
+
+func (s *Scanner) takeDirty(libraryID string) bool {
+	s.dirtyMu.Lock()
+	defer s.dirtyMu.Unlock()
+	was := s.dirty[libraryID]
+	delete(s.dirty, libraryID)
+	return was
 }
 
 func (s *Scanner) Scan(ctx context.Context, libraryID string) error {
@@ -54,6 +73,9 @@ func (s *Scanner) Scan(ctx context.Context, libraryID string) error {
 	}
 
 	if active, aerr := s.rq.GetActiveScanRun(ctx, libraryID); aerr == nil && active.ID != "" {
+		s.markDirty(libraryID)
+		slog.Info("scan: coalesced — another scan is running",
+			"library_id", libraryID, "active_run", active.ID)
 		return ErrScanAlreadyRunning
 	}
 
@@ -97,6 +119,16 @@ func (s *Scanner) Scan(ctx context.Context, libraryID string) error {
 		ID:     run.ID,
 	}); err != nil {
 		slog.Error("scan: finish run", "run_id", run.ID, "err", err)
+	}
+
+	if s.takeDirty(libraryID) {
+		slog.Info("scan: respawning for queued changes", "library_id", libraryID)
+		go func() { //nolint:gosec,contextcheck // respawn must outlive caller's request-scoped ctx
+			respawnCtx := context.Background()
+			if rerr := s.Scan(respawnCtx, libraryID); rerr != nil && !errors.Is(rerr, ErrScanAlreadyRunning) {
+				slog.Error("scan: respawn failed", "library_id", libraryID, "err", rerr)
+			}
+		}()
 	}
 	return scanErr
 }
