@@ -17,6 +17,7 @@ import (
 
 const (
 	enrichBatchSize = 10
+	enrichBusyDelay = 100 * time.Millisecond
 	enrichPollDelay = 5 * time.Second
 	enrichErrDelay  = 30 * time.Second
 )
@@ -68,31 +69,35 @@ func (e *Enricher) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if err := e.processBatch(ctx); err != nil {
+			n, err := e.processBatch(ctx)
+			switch {
+			case err != nil:
 				slog.Error("enricher: batch error", "err", err)
 				ticker.Reset(enrichErrDelay)
-			} else {
+			case n == enrichBatchSize:
+				ticker.Reset(enrichBusyDelay)
+			default:
 				ticker.Reset(enrichPollDelay)
 			}
 		}
 	}
 }
 
-func (e *Enricher) processBatch(ctx context.Context) error {
+func (e *Enricher) processBatch(ctx context.Context) (int, error) {
 	batch, err := e.wq.ClaimEnrichmentBatch(ctx, enrichBatchSize)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	if len(batch) > 0 {
 		slog.Debug("enricher: processing batch", "count", len(batch))
 	}
 	for _, item := range batch {
 		if ctx.Err() != nil {
-			return ctx.Err()
+			return len(batch), ctx.Err()
 		}
 		e.enrichOne(ctx, item)
 	}
-	return nil
+	return len(batch), nil
 }
 
 func (e *Enricher) enrichOne(ctx context.Context, item queries.EnrichmentQueue) {
