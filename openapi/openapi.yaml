@@ -33,6 +33,8 @@ tags:
     description: Full-text search across catalog.
   - name: art
     description: Content-addressed cover art and artist image cache.
+  - name: server
+    description: Global server settings (admin-only).
 
 paths:
   /auth/login:
@@ -713,7 +715,7 @@ paths:
       description: |
         Returns global server settings. Secret values are never returned in plaintext;
         only `*_set` booleans indicate whether each is configured.
-      tags: [Server]
+      tags: [server]
       security: [{ bearerAuth: [] }]
       responses:
         '200':
@@ -728,7 +730,7 @@ paths:
       description: |
         Partially update server settings. Provide only the fields to change.
         Secret fields accept plaintext on write; pass `""` to clear.
-      tags: [Server]
+      tags: [server]
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
