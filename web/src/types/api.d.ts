@@ -441,7 +441,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/art/{hash}": {
+    "/public/art/{hash}": {
         parameters: {
             query?: never;
             header?: never;
@@ -451,7 +451,7 @@ export interface paths {
         /**
          * Serve cover art
          * @description Serves a cached image file by its SHA-256 content hash. Mounted at
-         *     `/art/{hash}`, not under `/api/v1`. No authentication required —
+         *     `/public/art/{hash}`, not under `/api/v1`. No authentication required —
          *     the hash itself is the capability token (256-bit preimage resistance
          *     makes enumeration infeasible).
          *

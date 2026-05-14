@@ -82,7 +82,7 @@ jobs:
       - name: Cache vendored assets
         uses: actions/cache@v5
         with:
-          path: internal/transport/routes/api/docs/scalar-standalone.js
+          path: internal/server/docs/scalar-standalone.js
           key: vendor-${{ runner.os }}-${{ hashFiles('Makefile') }}-redocly
 
       - name: Vendor third-party assets
@@ -135,6 +135,7 @@ jobs:
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
           context: .
+          file: deploy/Dockerfile
           push: false
           load: true
           tags: sarga:ci

@@ -12,13 +12,14 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: '../internal/transport/routes/web/dist',
+    outDir: '../internal/server/frontend/dist',
     emptyOutDir: true,
   },
   server: {
     proxy: {
       '/api': 'http://localhost:8080',
-      '/art': 'http://localhost:8080',
+      '/public': 'http://localhost:8080',
+      '/docs': 'http://localhost:8080',
     },
   },
 })

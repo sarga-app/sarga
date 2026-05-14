@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/sarga-app/sarga/internal/support/config"
-	"github.com/sarga-app/sarga/internal/support/db"
+	"github.com/sarga-app/sarga/internal/config"
+	"github.com/sarga-app/sarga/internal/db"
 )
 
 var migrateConfigPath string

@@ -16,13 +16,5 @@
   flex: 1;
   overflow-y: auto;
   padding: 14px 36px 24px;
-  /* clears the fixed player bar */
   padding-bottom: calc(var(--player-h) + var(--player-gap) + 24px);
-  /* smooth scrolling on programmatic scrollTo() and anchor jumps */
-  scroll-behavior: smooth;
-}
-
-/* Tame the page enter animation — keep it short, opacity only, no transforms. */
-.page {
-  animation: page-enter 120ms var(--ease);
 }

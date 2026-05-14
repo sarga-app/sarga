@@ -9,10 +9,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/sarga-app/sarga/internal/support/config"
-	"github.com/sarga-app/sarga/internal/support/db"
-	"github.com/sarga-app/sarga/internal/support/telemetry"
-	"github.com/sarga-app/sarga/internal/transport"
+	"github.com/sarga-app/sarga/internal/config"
+	"github.com/sarga-app/sarga/internal/db"
+	"github.com/sarga-app/sarga/internal/log"
+	"github.com/sarga-app/sarga/internal/server"
 )
 
 var serveConfigPath string
@@ -25,7 +25,7 @@ var serveCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		slog.SetDefault(telemetry.NewLogger(cfg.Log))
+		slog.SetDefault(log.NewLogger(cfg.Log))
 		v, _, _, _ := buildInfo()
 		slog.Info("sarga: starting", "version", v, "addr", cfg.Server.Addr, "data_dir", cfg.Data.Dir)
 
@@ -53,7 +53,7 @@ var serveCmd = &cobra.Command{
 			}
 		}()
 
-		return transport.Run(ctx, cfg, dbInst)
+		return server.Run(ctx, cfg, dbInst)
 	},
 }
 

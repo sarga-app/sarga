@@ -2,7 +2,6 @@ import { Link } from '@tanstack/react-router'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { Search, Music } from 'lucide-react'
 import { search } from '@/services/catalog'
-import { ImageFade } from '@/components/ui/image-fade'
 import { FormatBadge } from '@/components/ui/format-badge'
 import { SectionHeader } from '@/components/ui/section-header'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -16,12 +15,7 @@ function AlbumRow({ album }: { album: Album }) {
     <Link to="/albums/$id" params={{ id: album.id }} className={styles.albumRow}>
       <div className={styles.albumArt}>
         {album.cover_art_hash ? (
-          <ImageFade
-            src={artUrl(album.cover_art_hash)}
-            alt={album.title}
-            placeholderStyle={{ width: '100%', height: '100%' }}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
+          <img src={artUrl(album.cover_art_hash, 160)} alt="" loading="lazy" decoding="async" />
         ) : (
           <Music size={16} strokeWidth={1} color="var(--fg-4)" />
         )}

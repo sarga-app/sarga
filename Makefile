@@ -17,7 +17,7 @@ SQLC        ?= sqlc
 .DEFAULT_GOAL := help
 
 SCALAR_VERSION := 1.35.5
-SCALAR_BUNDLE  := internal/transport/routes/api/docs/scalar-standalone.js
+SCALAR_BUNDLE  := internal/server/docs/scalar-standalone.js
 
 # ── Help ──────────────────────────────────────────────────────────────────────
 
@@ -37,10 +37,10 @@ $(SCALAR_BUNDLE):
 	@echo "fetching scalar@$(SCALAR_VERSION)"
 	@curl -sSLf -o $@ "https://cdn.jsdelivr.net/npm/@scalar/api-reference@$(SCALAR_VERSION)/dist/browser/standalone.js"
 
-web-build: ## Build React frontend → internal/transport/routes/web/dist/
+web-build: ## Build React frontend → internal/server/frontend/dist/ (embedded by internal/server/frontend/frontend.go)
 	@cd web && pnpm install --frozen-lockfile && pnpm build
 
-web-types: ## Regenerate web/src/types/api.d.ts from api/openapi.yaml
+web-types: ## Regenerate web/src/types/api.d.ts from openapi/openapi.yaml
 	@cd web && pnpm run types
 
 build: $(SCALAR_BUNDLE) web-build ## Build the sarga binary (full: vendor + frontend + go)
@@ -71,7 +71,7 @@ fmt-check: ## CI: fail if any Go file needs formatting
 	fi
 
 vet: ## Run go vet ./...
-	@mkdir -p internal/transport/routes/web/dist && touch internal/transport/routes/web/dist/.gitkeep
+	@mkdir -p internal/server/frontend/dist && touch internal/server/frontend/dist/.gitkeep
 	@$(GO) vet ./...
 
 lint: ## Run golangci-lint (~25 linters)
@@ -102,21 +102,21 @@ test: ## Run all Go tests with race detector
 # ── Code generation ───────────────────────────────────────────────────────────
 ## ── Code generation ───────────────────────────────────────────────────────────
 
-api-gen: ## Regenerate internal/transport/routes/api/gen/ from api/openapi.yaml
-	@$(GO) tool oapi-codegen -config api/oapi-codegen.yaml api/openapi.yaml
+api-gen: ## Regenerate openapi/ from openapi/openapi.yaml
+	@$(GO) tool oapi-codegen -config openapi/oapi-codegen.yaml openapi/openapi.yaml
 
-api-check: ## CI: fail if api/gen is out of date with api/openapi.yaml
-	@$(GO) tool oapi-codegen -config api/oapi-codegen.yaml api/openapi.yaml
-	@if ! git diff --quiet -- internal/transport/routes/api/gen; then \
+api-check: ## CI: fail if openapi is out of date with openapi/openapi.yaml
+	@$(GO) tool oapi-codegen -config openapi/oapi-codegen.yaml openapi/openapi.yaml
+	@if ! git diff --quiet -- openapi; then \
 	  echo "api gen out of date — run 'make api-gen' and commit the result"; \
-	  git --no-pager diff --stat -- internal/transport/routes/api/gen; \
+	  git --no-pager diff --stat -- openapi; \
 	  exit 1; \
 	fi
 
-api-lint: ## Lint api/openapi.yaml with Redocly CLI
-	@npx -y @redocly/cli@latest lint --config api/redocly.yaml
+api-lint: ## Lint openapi/openapi.yaml with Redocly CLI
+	@npx -y @redocly/cli@latest lint --config openapi/redocly.yaml
 
-sqlc: ## Regenerate internal/support/db/ from SQL queries + migrations
+sqlc: ## Regenerate internal/db/ from SQL queries + migrations
 	@$(SQLC) generate
 
 sqlc-check: ## CI: fail if sqlc output is out of date
@@ -126,7 +126,7 @@ sqlc-check: ## CI: fail if sqlc output is out of date
 ## ── Docker & CI ───────────────────────────────────────────────────────────────
 
 docker: ## Build Docker image tagged sarga:dev
-	@docker build --build-arg VERSION=$(VERSION) -t sarga:dev .
+	@docker build -f deploy/Dockerfile --build-arg VERSION=$(VERSION) -t sarga:dev .
 
 ci: tidy-check fmt-check vet lint test vuln sqlc-check api-check build ## Run the full CI suite locally
 

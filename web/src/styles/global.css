@@ -22,11 +22,6 @@ html, body, #root {
   padding: 0;
 }
 
-@keyframes page-enter {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

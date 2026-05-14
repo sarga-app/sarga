@@ -46,7 +46,7 @@ export function AlbumDetail({ id, libraryId }: AlbumDetailProps) {
         <div className={styles.artBox}>
           {data.cover_art_hash ? (
             <ImageFade
-              src={artUrl(data.cover_art_hash)}
+              src={artUrl(data.cover_art_hash, 640)}
               alt={data.title}
               placeholderStyle={{ width: '100%', height: '100%' }}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}

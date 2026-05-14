@@ -1,0 +1,21 @@
+name: sarga
+
+services:
+  sarga:
+    container_name: sarga
+    image: ghcr.io/sarga-app/sarga:latest
+    restart: unless-stopped
+    # If you want to use environment variables, create a .env file in the same directory as this compose.yaml
+    # and add your variables there. Then uncomment the env_file section below.
+    # env_file:
+    #   - .env
+    ports:
+      - "8080:8080"
+    volumes:
+      - sarga-data:/data
+      # Bind-mount your music folder:
+      # - /path/to/your/music:/mnt/music
+
+volumes:
+  sarga-data:
+    name: sarga-data

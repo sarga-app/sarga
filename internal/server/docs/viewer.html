@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sarga API</title>
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; }
+      :root {
+        --scalar-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, system-ui, sans-serif;
+        --scalar-font-code: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <script
+      id="api-reference"
+      data-url="/docs/openapi.json"
+      data-configuration='{
+        "layout": "modern",
+        "theme": "default",
+        "showSidebar": true,
+        "withDefaultFonts": false,
+        "hideClientButton": true,
+        "hideTestRequestButton": false,
+        "hideDownloadButton": false,
+        "hideModels": false,
+        "proxyUrl": "",
+        "defaultHttpClient": { "targetKey": "shell", "clientKey": "curl" },
+        "persistAuth": false,
+        "authentication": { "preferredSecurityScheme": "bearerAuth" },
+        "defaultOpenAllTags": true,
+        "pathRouting": { "basePath": "/docs" },
+        "metaData": { "title": "Sarga API" }
+      }'
+    ></script>
+    <script src="/docs/scalar.js"></script>
+  </body>
+</html>

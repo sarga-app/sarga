@@ -19,5 +19,6 @@ export const PLAYER_GAP = 16
 /** API base path. */
 export const API_BASE = '/api/v1'
 
-/** Cover art URL builder. */
-export const artUrl = (hash: string) => `/art/${hash}`
+export type ArtSize = 160 | 320 | 480 | 640
+export const artUrl = (hash: string, w?: ArtSize) =>
+  w ? `/public/art/${hash}?w=${w}` : `/public/art/${hash}`

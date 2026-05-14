@@ -144,7 +144,7 @@ linters:
 
       # Providers return (nil, nil) to signal "not found, not an error" — intentional.
       # The enricher always checks result == nil before use.
-      - path: internal/domain/library/provider_
+      - path: internal/library/provider_
         linters:
           - nilnil
 

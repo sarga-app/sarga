@@ -18,15 +18,15 @@ Last reviewed: 2026-05-06.
 
 | Protection | What it means | Where it lives |
 |---|---|---|
-| **Argon2id password hashing** with OWASP 2024 parameters (m=64 MiB, t=3, p=4) | Even if someone steals your database, cracking a single password takes months on a GPU. The parameters are tuned to OWASP's current recommendation. | `internal/domain/auth/password.go` |
+| **Argon2id password hashing** with OWASP 2024 parameters (m=64 MiB, t=3, p=4) | Even if someone steals your database, cracking a single password takes months on a GPU. The parameters are tuned to OWASP's current recommendation. | `internal/auth/password.go` |
 | **Constant-time password compare** | `crypto/subtle.ConstantTimeCompare` — an attacker can't measure how long verification takes to learn anything about the stored hash. | same |
 | **Password input bounded at 1024 bytes** | Prevents a malicious request with a 10 MB "password" from pinning the CPU on argon2. | same |
 | **Automatic rehash on login** | If we tighten argon2 parameters in a future release, your stored hash gets silently upgraded the next time you log in. No flag day. | `NeedsRehash()` |
-| **Refresh tokens are 32 random bytes, stored as SHA-256 hash** | The plaintext only ever lives in your browser's `HttpOnly` cookie. The database holds a hash, so a leak doesn't hand attackers usable tokens. | `internal/domain/auth/refresh.go` |
+| **Refresh tokens are 32 random bytes, stored as SHA-256 hash** | The plaintext only ever lives in your browser's `HttpOnly` cookie. The database holds a hash, so a leak doesn't hand attackers usable tokens. | `internal/auth/refresh.go` |
 | **Refresh token rotation** | Each refresh issues a new token and invalidates the previous one (linked via `parent_id`). Reusing a rotated token is detectable. | migration `0001_init.sql` |
 | **Username and email forced lowercase at the DB level** | CHECK constraints make `Alice` and `alice` literally the same row — no Unicode-confusable login bypasses. | same migration |
-| **JWT signing secret auto-generated on first boot** | `data/secrets/jwt.key` (0600 perms, atomic write). You don't need to think about it; the file appears with 32 cryptographically random bytes the first time Sarga starts. | `internal/domain/auth/jwt.go` |
-| **Loose-perm refusal** | If `jwt.key` ends up world- or group-readable (e.g. someone `chmod`d it), Sarga refuses to start rather than load it. | `internal/domain/auth/jwt.go:readSecret` |
+| **JWT signing secret auto-generated on first boot** | `data/secrets/jwt.key` (0600 perms, atomic write). You don't need to think about it; the file appears with 32 cryptographically random bytes the first time Sarga starts. | `internal/auth/jwt.go` |
+| **Loose-perm refusal** | If `jwt.key` ends up world- or group-readable (e.g. someone `chmod`d it), Sarga refuses to start rather than load it. | `internal/auth/jwt.go:readSecret` |
 
 ### Network defenses
 

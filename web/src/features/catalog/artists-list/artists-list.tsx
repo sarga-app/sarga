@@ -1,4 +1,3 @@
-import { useRef } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { Mic2 } from 'lucide-react'
@@ -12,9 +11,12 @@ import type { ArtistsListProps } from './artists-list.types'
 
 const ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ#'.split('')
 
-export function ArtistsList({ libraryId, page, onPageChange }: ArtistsListProps) {
-  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
+function prefersReducedMotion() {
+  return typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+}
 
+export function ArtistsList({ libraryId, page, onPageChange }: ArtistsListProps) {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['artists', libraryId, page],
     queryFn: () => listArtists(libraryId, page, ARTISTS_PAGE_SIZE),
@@ -39,7 +41,8 @@ export function ArtistsList({ libraryId, page, onPageChange }: ArtistsListProps)
   })
 
   const scrollTo = (letter: string) => {
-    sectionRefs.current[letter]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    const el = document.querySelector<HTMLDivElement>(`[data-section-letter="${CSS.escape(letter)}"]`)
+    el?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' })
   }
 
   if (isLoading) return <PageLoader />
@@ -58,7 +61,7 @@ export function ArtistsList({ libraryId, page, onPageChange }: ArtistsListProps)
         )}
 
         {letters.map((letter) => (
-          <div key={letter} ref={(el) => { sectionRefs.current[letter] = el }}>
+          <div key={letter} data-section-letter={letter}>
             <div className={styles.letterHeader}>
               <span className={styles.letterLabel}>{letter}</span>
               <div className={styles.letterRule} />

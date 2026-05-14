@@ -55,6 +55,7 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: var(--s-5);
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  column-gap: var(--s-4);
+  row-gap: var(--s-6);
 }

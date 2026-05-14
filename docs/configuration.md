@@ -35,7 +35,7 @@ That's the whole story. There are **no CLI flags for config values** — only `-
 | `config.yaml` | Path passed to `--config` (default: `./config.yaml`) | When env doesn't set the value |
 | `SARGA_*` env vars | Process environment | Always — env wins over YAML |
 
-Naming convention: `SARGA_<SECTION>_<KEY>` maps to `section.key`. Underscores become dots. So `SARGA_LOG_LEVEL` sets `log.level`, and `SARGA_AUTH_JWT_SECRET` sets `auth.jwt.secret`.
+Naming convention: `SARGA_<SECTION>_<KEY>` maps to `section.key`. Underscores become dots. So `SARGA_LOG_LEVEL` sets `log.level`, and `SARGA_SECRETS_JWT` sets `secrets.jwt`.
 
 ---
 
@@ -78,10 +78,11 @@ The clean split: durable non-secret settings in YAML, secrets in env.
    ```
    Commit this to your ops repo. It contains nothing sensitive.
 
-2. **Secrets** — for a standard install there are none to inject; Sarga auto-generates `jwt.key` on first boot. If you're integrating with an external secrets manager, put overrides in a systemd `EnvironmentFile` (mode `0600`):
+2. **Secrets** — for a standard install there are none to inject; Sarga auto-generates `jwt.key` and `master.key` on first boot. If you're integrating with an external secrets manager, put overrides in a systemd `EnvironmentFile` (mode `0600`):
    ```ini
    # /etc/sarga/sarga.env  (0600, chown sarga:sarga)
-   SARGA_AUTH_JWT_SECRET=<inject from vault/KMS if needed>
+   SARGA_SECRETS_JWT=<inject from vault/KMS if needed>
+   SARGA_SECRETS_MASTER=<hex or base64, 32 bytes>
    ```
 
 3. **Wire it up in the unit:**

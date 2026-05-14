@@ -12,10 +12,10 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
-	domauth "github.com/sarga-app/sarga/internal/domain/auth"
-	"github.com/sarga-app/sarga/internal/support/config"
-	"github.com/sarga-app/sarga/internal/support/db"
-	"github.com/sarga-app/sarga/internal/support/db/queries"
+	"github.com/sarga-app/sarga/internal/auth"
+	"github.com/sarga-app/sarga/internal/config"
+	"github.com/sarga-app/sarga/internal/db"
+	"github.com/sarga-app/sarga/internal/db/queries"
 )
 
 var adminConfigPath string
@@ -48,7 +48,7 @@ func runCreateUser(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	hash, err := domauth.Hash(pw)
+	hash, err := auth.Hash(pw)
 	if err != nil {
 		return fmt.Errorf("hash password: %w", err)
 	}
