@@ -17,7 +17,6 @@ import (
 
 const (
 	enrichBatchSize = 10
-	enrichBusyDelay = 100 * time.Millisecond
 	enrichPollDelay = 5 * time.Second
 	enrichErrDelay  = 30 * time.Second
 )
@@ -61,25 +60,35 @@ func (e *Enricher) Run(ctx context.Context) {
 		slog.Error("enricher: reset stuck enrichments", "err", err)
 	}
 
-	ticker := time.NewTicker(enrichPollDelay)
-	defer ticker.Stop()
-
 	for {
-		select {
-		case <-ctx.Done():
+		if ctx.Err() != nil {
 			return
-		case <-ticker.C:
-			n, err := e.processBatch(ctx)
-			switch {
-			case err != nil:
-				slog.Error("enricher: batch error", "err", err)
-				ticker.Reset(enrichErrDelay)
-			case n == enrichBatchSize:
-				ticker.Reset(enrichBusyDelay)
-			default:
-				ticker.Reset(enrichPollDelay)
+		}
+		n, err := e.processBatch(ctx)
+		switch {
+		case err != nil:
+			slog.Error("enricher: batch error", "err", err)
+			if !sleep(ctx, enrichErrDelay) {
+				return
+			}
+		case n == enrichBatchSize:
+			continue
+		default:
+			if !sleep(ctx, enrichPollDelay) {
+				return
 			}
 		}
+	}
+}
+
+func sleep(ctx context.Context, d time.Duration) bool {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-t.C:
+		return true
 	}
 }
 
