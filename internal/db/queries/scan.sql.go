@@ -43,26 +43,28 @@ const getActiveScanRun = `-- name: GetActiveScanRun :one
 SELECT
     id, library_id, started_at, finished_at, status,
     files_scanned, files_added, files_updated, files_removed,
-    files_unchanged, files_errored, total_files, error
+    files_unchanged, files_errored, total_files, error,
+    last_completed_folder
 FROM scan_runs
 WHERE library_id = ? AND status = 'running'
 LIMIT 1
 `
 
 type GetActiveScanRunRow struct {
-	ID             string
-	LibraryID      string
-	StartedAt      string
-	FinishedAt     *string
-	Status         string
-	FilesScanned   int64
-	FilesAdded     int64
-	FilesUpdated   int64
-	FilesRemoved   int64
-	FilesUnchanged int64
-	FilesErrored   int64
-	TotalFiles     int64
-	Error          *string
+	ID                  string
+	LibraryID           string
+	StartedAt           string
+	FinishedAt          *string
+	Status              string
+	FilesScanned        int64
+	FilesAdded          int64
+	FilesUpdated        int64
+	FilesRemoved        int64
+	FilesUnchanged      int64
+	FilesErrored        int64
+	TotalFiles          int64
+	Error               *string
+	LastCompletedFolder *string
 }
 
 func (q *Queries) GetActiveScanRun(ctx context.Context, libraryID string) (GetActiveScanRunRow, error) {
@@ -82,6 +84,7 @@ func (q *Queries) GetActiveScanRun(ctx context.Context, libraryID string) (GetAc
 		&i.FilesErrored,
 		&i.TotalFiles,
 		&i.Error,
+		&i.LastCompletedFolder,
 	)
 	return i, err
 }
@@ -288,6 +291,20 @@ WHERE status = 'running'
 
 func (q *Queries) MarkInterruptedScansAsFailed(ctx context.Context) error {
 	_, err := q.db.ExecContext(ctx, markInterruptedScansAsFailed)
+	return err
+}
+
+const updateScanRunCursor = `-- name: UpdateScanRunCursor :exec
+UPDATE scan_runs SET last_completed_folder = ? WHERE id = ?
+`
+
+type UpdateScanRunCursorParams struct {
+	LastCompletedFolder *string
+	ID                  string
+}
+
+func (q *Queries) UpdateScanRunCursor(ctx context.Context, arg UpdateScanRunCursorParams) error {
+	_, err := q.db.ExecContext(ctx, updateScanRunCursor, arg.LastCompletedFolder, arg.ID)
 	return err
 }
 

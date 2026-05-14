@@ -10,10 +10,14 @@ RETURNING
 SELECT
     id, library_id, started_at, finished_at, status,
     files_scanned, files_added, files_updated, files_removed,
-    files_unchanged, files_errored, total_files, error
+    files_unchanged, files_errored, total_files, error,
+    last_completed_folder
 FROM scan_runs
 WHERE library_id = ? AND status = 'running'
 LIMIT 1;
+
+-- name: UpdateScanRunCursor :exec
+UPDATE scan_runs SET last_completed_folder = ? WHERE id = ?;
 
 -- name: UpdateScanRunProgress :exec
 UPDATE scan_runs SET

@@ -151,18 +151,9 @@ func resumeInterruptedScans(ctx context.Context, d *db.DB, sc *scanner.Scanner) 
 	if err := rows.Err(); err != nil {
 		slog.Error("resume scans: iterate rows", "err", err)
 	}
-	if len(libs) == 0 {
-		return
-	}
-	if _, err := d.Write().ExecContext(ctx,
-		`UPDATE scan_runs SET status = 'failed', error = 'interrupted by server restart' WHERE status = 'running'`,
-	); err != nil {
-		slog.Error("resume scans: mark failed", "err", err)
-	}
 	for _, libID := range libs {
-		slog.Info("resume: restarting interrupted scan", "library_id", libID)
 		go func(id string) {
-			if err := sc.Scan(ctx, id); err != nil {
+			if err := sc.Resume(ctx, id); err != nil {
 				slog.Error("resume: scan failed", "library_id", id, "err", err)
 			}
 		}(libID)

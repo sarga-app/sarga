@@ -35,6 +35,7 @@ func (s *Scanner) processPath(
 	ctx context.Context,
 	libraryID, root string,
 	cfg ScanSettings,
+	cursor string,
 	workerN int,
 	pr *progress,
 ) error {
@@ -45,9 +46,23 @@ func (s *Scanner) processPath(
 	}
 	walkDur := time.Since(walkStart)
 	pr.addWalk(walkDur)
+
+	skipped := 0
+	if cursor != "" {
+		out := folders[:0]
+		for _, f := range folders {
+			if f.Dir <= cursor {
+				skipped++
+				continue
+			}
+			out = append(out, f)
+		}
+		folders = out
+	}
+
 	slog.Debug("scan: walk",
 		"elapsed", walkDur.Round(time.Millisecond),
-		"folders", len(folders), "removed", len(removed))
+		"folders", len(folders), "removed", len(removed), "skipped_by_cursor", skipped)
 
 	for _, f := range folders {
 		for _, ev := range f.Files {
@@ -217,10 +232,19 @@ func (s *Scanner) persistFolder(
 		}
 	}
 
+	dir := pf.dir
+	if err := q.UpdateScanRunCursor(ctx, queries.UpdateScanRunCursorParams{
+		LastCompletedFolder: &dir,
+		ID:                  pr.runID,
+	}); err != nil {
+		slog.Error("scan: update cursor", "run_id", pr.runID, "err", err)
+	}
+
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit: %w", err)
 	}
 
+	pr.setLiveCurrent(pf.dir)
 	pr.flushIfDue(ctx, s.wq)
 	return nil
 }

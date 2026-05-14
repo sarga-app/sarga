@@ -20,9 +20,17 @@ type progress struct {
 
 	walkDur, pipelineDur, missingDur, gcDur time.Duration
 
+	currentFolder string
+
 	flushed struct {
 		total, added, updated, unchanged, errored, removed int64
 	}
+}
+
+func (p *progress) setLiveCurrent(folder string) {
+	p.mu.Lock()
+	p.currentFolder = folder
+	p.mu.Unlock()
 }
 
 func (p *progress) addWalk(d time.Duration)     { p.mu.Lock(); p.walkDur += d; p.mu.Unlock() }

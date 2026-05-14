@@ -202,19 +202,20 @@ type ReleasesFt struct {
 }
 
 type ScanRun struct {
-	ID             string
-	LibraryID      string
-	StartedAt      string
-	FinishedAt     *string
-	Status         string
-	FilesScanned   int64
-	FilesAdded     int64
-	FilesUpdated   int64
-	FilesRemoved   int64
-	Error          *string
-	TotalFiles     int64
-	FilesUnchanged int64
-	FilesErrored   int64
+	ID                  string
+	LibraryID           string
+	StartedAt           string
+	FinishedAt          *string
+	Status              string
+	FilesScanned        int64
+	FilesAdded          int64
+	FilesUpdated        int64
+	FilesRemoved        int64
+	Error               *string
+	TotalFiles          int64
+	FilesUnchanged      int64
+	FilesErrored        int64
+	LastCompletedFolder *string
 }
 
 type ScrobbleOutbox struct {
