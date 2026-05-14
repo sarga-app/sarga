@@ -177,6 +177,11 @@ RETURNING
     missing_since, rg_track_gain, rg_track_peak, rg_album_gain, rg_album_peak,
     added_at, updated_at;
 
+-- name: HasPreferredTrackFile :one
+SELECT EXISTS(
+    SELECT 1 FROM track_files WHERE track_id = ? AND is_preferred = 1
+) AS has_preferred;
+
 -- name: FindMissingTrackFileByHash :one
 SELECT id, track_id, relative_path
 FROM track_files

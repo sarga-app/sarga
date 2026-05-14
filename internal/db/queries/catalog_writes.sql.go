@@ -382,6 +382,19 @@ func (q *Queries) GetTrackFileByPath(ctx context.Context, arg GetTrackFileByPath
 	return i, err
 }
 
+const hasPreferredTrackFile = `-- name: HasPreferredTrackFile :one
+SELECT EXISTS(
+    SELECT 1 FROM track_files WHERE track_id = ? AND is_preferred = 1
+) AS has_preferred
+`
+
+func (q *Queries) HasPreferredTrackFile(ctx context.Context, trackID string) (bool, error) {
+	row := q.db.QueryRowContext(ctx, hasPreferredTrackFile, trackID)
+	var has_preferred bool
+	err := row.Scan(&has_preferred)
+	return has_preferred, err
+}
+
 const insertArtist = `-- name: InsertArtist :one
 INSERT INTO artists (id, mbid, name, sort_name, is_various_artists)
 VALUES (?, ?, ?, ?, ?)

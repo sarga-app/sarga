@@ -356,6 +356,10 @@ func writeTrackFile(
 			pr.recordMoved()
 			return id, nil
 		}
+		preferred, err := q.HasPreferredTrackFile(ctx, trackID)
+		if err != nil {
+			return "", err
+		}
 		row, err := q.InsertTrackFile(ctx, queries.InsertTrackFileParams{
 			ID:              uuid.NewString(),
 			TrackID:         trackID,
@@ -372,7 +376,7 @@ func writeTrackFile(
 			ContentHash:     file.hash,
 			SourceKind:      "import",
 			IsLossless:      lossless,
-			IsPreferred:     true,
+			IsPreferred:     !preferred,
 			MatchConfidence: 0,
 			MatchSource:     "raw",
 			RgTrackGain:     optFloat(meta.RGTrackGain),
