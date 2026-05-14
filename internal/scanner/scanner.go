@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"runtime"
 	"sync"
 	"time"
@@ -17,7 +18,16 @@ import (
 	"github.com/sarga-app/sarga/internal/db/queries"
 )
 
-var ErrScanAlreadyRunning = errors.New("scanner: scan already running for this library")
+var (
+	ErrScanAlreadyRunning = errors.New("scanner: scan already running for this library")
+	ErrNoActiveScan       = errors.New("scanner: no active scan to cancel")
+	ErrLibraryUnreachable = errors.New("scanner: library path unreachable")
+)
+
+type activeRun struct {
+	pr     *progress
+	cancel context.CancelFunc
+}
 
 type Scanner struct {
 	rq      *queries.Queries
@@ -29,6 +39,9 @@ type Scanner struct {
 
 	dirtyMu sync.Mutex
 	dirty   map[string]bool
+
+	runsMu sync.RWMutex
+	runs   map[string]*activeRun
 }
 
 func New(d *db.DB, art *coverart.Manager, matcher *Matcher) *Scanner {
@@ -42,7 +55,46 @@ func New(d *db.DB, art *coverart.Manager, matcher *Matcher) *Scanner {
 		db:      d.Write(),
 		matcher: matcher,
 		dirty:   make(map[string]bool),
+		runs:    make(map[string]*activeRun),
 	}
+}
+
+func (s *Scanner) registerRun(runID string, ar *activeRun) {
+	s.runsMu.Lock()
+	s.runs[runID] = ar
+	s.runsMu.Unlock()
+}
+
+func (s *Scanner) deregisterRun(runID string) {
+	s.runsMu.Lock()
+	delete(s.runs, runID)
+	s.runsMu.Unlock()
+}
+
+func (s *Scanner) LiveState(runID string) *LiveState {
+	s.runsMu.RLock()
+	defer s.runsMu.RUnlock()
+	ar, ok := s.runs[runID]
+	if !ok {
+		return nil
+	}
+	return ar.pr.snapshot()
+}
+
+func (s *Scanner) Cancel(ctx context.Context, libraryID string) error {
+	active, err := s.rq.GetActiveScanRun(ctx, libraryID)
+	if err != nil || active.ID == "" {
+		return ErrNoActiveScan
+	}
+	s.runsMu.RLock()
+	ar, ok := s.runs[active.ID]
+	s.runsMu.RUnlock()
+	if !ok {
+		return ErrNoActiveScan
+	}
+	slog.Info("scan: cancelling", "library_id", libraryID, "run_id", active.ID)
+	ar.cancel()
+	return nil
 }
 
 func (s *Scanner) markDirty(libraryID string) {
@@ -115,11 +167,35 @@ func (s *Scanner) loadLibrary(ctx context.Context, libraryID string) (queries.Li
 }
 
 func (s *Scanner) doScan(
-	ctx context.Context,
+	parentCtx context.Context,
 	libraryID, runID, cursor string,
 	paths []queries.LibraryPath,
 	settings queries.LibrarySetting,
 ) error {
+	for _, p := range paths {
+		_, statErr := os.Stat(p.Path)
+		if statErr == nil {
+			continue
+		}
+		scanErr := fmt.Errorf("%w: %s: %w", ErrLibraryUnreachable, p.Path, statErr)
+		errStr := scanErr.Error()
+		failed := "failed"
+		if ferr := s.wq.FinishScanRun(parentCtx, queries.FinishScanRunParams{
+			Status: failed, Error: &errStr, ID: runID,
+		}); ferr != nil {
+			slog.Error("scan: finish run after unreachable path", "err", ferr)
+		}
+		slog.Error("scan: aborted, library path unreachable",
+			"library_id", libraryID, "run_id", runID, "path", p.Path, "err", statErr)
+		return scanErr
+	}
+
+	ctx, cancel := context.WithCancel(parentCtx)
+	defer cancel()
+	pr := &progress{runID: runID}
+	s.registerRun(runID, &activeRun{pr: pr, cancel: cancel})
+	defer s.deregisterRun(runID)
+
 	slog.Info("scan: started",
 		"library_id", libraryID, "run_id", runID,
 		"paths", len(paths), "cursor", cursor)
@@ -127,14 +203,20 @@ func (s *Scanner) doScan(
 		slog.Debug("scan: path", "path", p.Path)
 	}
 
-	pr, scanErr := s.runScan(ctx, libraryID, runID, cursor, paths, settings)
+	scanErr := s.runScan(ctx, libraryID, runID, cursor, paths, settings, pr)
 
 	status, errMsg := "completed", (*string)(nil)
-	if scanErr != nil && !errors.Is(scanErr, context.Canceled) {
+	switch {
+	case errors.Is(scanErr, context.Canceled):
+		status = "cancelled"
+		msg := "cancelled by user"
+		errMsg = &msg
+		slog.Info("scan: cancelled", "library_id", libraryID, "run_id", runID)
+	case scanErr != nil:
 		errStr := scanErr.Error()
 		status, errMsg = "failed", &errStr
 		slog.Error("scan: failed", "library_id", libraryID, "run_id", runID, "err", scanErr)
-	} else {
+	default:
 		t := pr.totals()
 		walk, pipeline, missing, gc := pr.timings()
 		slog.Info("scan: completed",
@@ -173,7 +255,8 @@ func (s *Scanner) runScan(
 	libraryID, runID, cursor string,
 	paths []queries.LibraryPath,
 	settings queries.LibrarySetting,
-) (*progress, error) {
+	pr *progress,
+) error {
 	scanCfg := ScanSettings{
 		Extensions:     ParseExtensions(settings.FileExtensions),
 		FollowSymlinks: settings.FollowSymlinks,
@@ -181,15 +264,13 @@ func (s *Scanner) runScan(
 	workerN := min(runtime.NumCPU(), 8)
 	slog.Debug("scan: worker pool", "workers", workerN)
 
-	pr := &progress{runID: runID}
-
 	for _, lp := range paths {
 		if ctx.Err() != nil {
-			return pr, ctx.Err()
+			return ctx.Err()
 		}
 		slog.Info("scan: walking path", "path", lp.Path)
 		if err := s.processPath(ctx, libraryID, lp.Path, scanCfg, cursor, workerN, pr); err != nil {
-			return pr, err
+			return err
 		}
 	}
 
@@ -214,5 +295,5 @@ func (s *Scanner) runScan(
 		slog.Error("scan: set total_files", "run_id", runID, "err", err)
 	}
 
-	return pr, nil
+	return nil
 }

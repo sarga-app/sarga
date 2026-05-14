@@ -33,6 +33,34 @@ func (p *progress) setLiveCurrent(folder string) {
 	p.mu.Unlock()
 }
 
+type LiveState struct {
+	RunID         string
+	CurrentFolder string
+	Total         int64
+	Added         int64
+	Updated       int64
+	Unchanged     int64
+	Moved         int64
+	Removed       int64
+	Errored       int64
+}
+
+func (p *progress) snapshot() *LiveState {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return &LiveState{
+		RunID:         p.runID,
+		CurrentFolder: p.currentFolder,
+		Total:         p.total,
+		Added:         p.added,
+		Updated:       p.updated,
+		Unchanged:     p.unchanged,
+		Moved:         p.moved,
+		Removed:       p.removed,
+		Errored:       p.errored,
+	}
+}
+
 func (p *progress) addWalk(d time.Duration)     { p.mu.Lock(); p.walkDur += d; p.mu.Unlock() }
 func (p *progress) addPipeline(d time.Duration) { p.mu.Lock(); p.pipelineDur += d; p.mu.Unlock() }
 func (p *progress) setMissingDur(d time.Duration) {
