@@ -68,14 +68,14 @@ func LoadOrGenerateMasterKey(path string) (*MasterKey, error) {
 		slog.Info("master key: loaded", "path", path)
 	case errors.Is(err, fs.ErrNotExist):
 		data = make([]byte, keySize)
-		if _, err := io.ReadFull(rand.Reader, data); err != nil {
-			return nil, fmt.Errorf("crypto: generate master key: %w", err)
+		if _, rerr := io.ReadFull(rand.Reader, data); rerr != nil {
+			return nil, fmt.Errorf("crypto: generate master key: %w", rerr)
 		}
-		if err := writeKeyFile(path, data); err != nil {
-			if errors.Is(err, fs.ErrExist) {
+		if werr := writeKeyFile(path, data); werr != nil {
+			if errors.Is(werr, fs.ErrExist) {
 				return LoadOrGenerateMasterKey(path)
 			}
-			return nil, fmt.Errorf("crypto: write master key: %w", err)
+			return nil, fmt.Errorf("crypto: write master key: %w", werr)
 		}
 		slog.Info("master key: generated and persisted", "path", path)
 	default:
@@ -97,14 +97,14 @@ func LoadOrGenerateJWTSecret(path string) ([]byte, error) {
 		return data, nil
 	case errors.Is(err, fs.ErrNotExist):
 		fresh := make([]byte, jwtSecretGenBytes)
-		if _, err := rand.Read(fresh); err != nil {
-			return nil, fmt.Errorf("crypto: generate jwt secret: %w", err)
+		if _, rerr := rand.Read(fresh); rerr != nil {
+			return nil, fmt.Errorf("crypto: generate jwt secret: %w", rerr)
 		}
-		if err := writeKeyFile(path, fresh); err != nil {
-			if errors.Is(err, fs.ErrExist) {
+		if werr := writeKeyFile(path, fresh); werr != nil {
+			if errors.Is(werr, fs.ErrExist) {
 				return LoadOrGenerateJWTSecret(path)
 			}
-			return nil, fmt.Errorf("crypto: write jwt secret: %w", err)
+			return nil, fmt.Errorf("crypto: write jwt secret: %w", werr)
 		}
 		slog.Info("jwt secret: generated and persisted", "path", path)
 		return fresh, nil

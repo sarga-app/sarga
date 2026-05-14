@@ -59,7 +59,7 @@ func Extract(path string) (Metadata, error) {
 	if err != nil {
 		return Metadata{Format: formatFromExt(path)}, nil
 	}
-	defer func() { _ = f.Close() }()
+	defer f.Close() //nolint:errcheck // read-only handle
 
 	all := f.AllTags()
 	props := f.Properties()
@@ -189,9 +189,8 @@ func pickStrings(primary, fallback map[string][]string, keys ...string) []string
 	return nil
 }
 
-func parseTuple(num, total string) (int, int) {
-	n := 0
-	t := atoi(total)
+func parseTuple(num, total string) (n, t int) {
+	t = atoi(total)
 	num = strings.TrimSpace(num)
 	if i := strings.IndexByte(num, '/'); i >= 0 {
 		n = atoi(num[:i])

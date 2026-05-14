@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"image"
 	"image/jpeg"
-	_ "image/png"
+	_ "image/png" // register PNG decoder for image.Decode
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -54,7 +54,7 @@ func (p *Public) SetCacheLimit(mb int64) { p.limitMB.Store(mb) }
 func (p *Public) ThumbUsedBytes() int64 {
 	var total int64
 	root := filepath.Join(p.artDir, thumbDirName)
-	_ = filepath.WalkDir(root, func(_ string, d fs.DirEntry, err error) error {
+	filepath.WalkDir(root, func(_ string, d fs.DirEntry, err error) error { //nolint:errcheck // walk errors ignored; total is best-effort
 		if err != nil || d.IsDir() {
 			return nil //nolint:nilerr
 		}
@@ -82,7 +82,7 @@ func (p *Public) serveArt(w http.ResponseWriter, r *http.Request) {
 
 	wStr := r.URL.Query().Get("w")
 	if wStr == "" {
-		http.ServeFile(w, r, filepath.Join(p.artDir, hash))
+		http.ServeFile(w, r, filepath.Join(p.artDir, hash)) //nolint:gosec // hash regex-validated above
 		return
 	}
 
@@ -99,16 +99,16 @@ func (p *Public) serveArt(w http.ResponseWriter, r *http.Request) {
 	thumbPath := p.thumbPath(hash, size)
 	if _, statErr := os.Stat(thumbPath); statErr == nil {
 		now := time.Now()
-		_ = os.Chtimes(thumbPath, now, now)
+		os.Chtimes(thumbPath, now, now) //nolint:errcheck // best-effort atime refresh for LRU
 		http.ServeFile(w, r, thumbPath)
 		return
 	}
 
 	_, err, _ = p.sf.Do(thumbPath, func() (any, error) {
 		if _, statErr := os.Stat(thumbPath); statErr == nil {
-			return nil, nil
+			return struct{}{}, nil
 		}
-		return nil, p.generate(filepath.Join(p.artDir, hash), thumbPath, size)
+		return struct{}{}, p.generate(filepath.Join(p.artDir, hash), thumbPath, size)
 	})
 	if err != nil {
 		p.log.Error("art: generate thumb", "hash", hash, "w", size, "err", err)
@@ -139,8 +139,8 @@ func (p *Public) generate(srcPath, dstPath string, size int) error {
 	dst := image.NewRGBA(image.Rect(0, 0, size, size))
 	draw.CatmullRom.Scale(dst, dst.Bounds(), srcImg, srcImg.Bounds(), draw.Over, nil)
 
-	if err := os.MkdirAll(filepath.Dir(dstPath), 0o755); err != nil {
-		return fmt.Errorf("mkdir: %w", err)
+	if mkErr := os.MkdirAll(filepath.Dir(dstPath), 0o750); mkErr != nil {
+		return fmt.Errorf("mkdir: %w", mkErr)
 	}
 	tmp, err := os.CreateTemp(filepath.Dir(dstPath), ".tmp-*.jpg")
 	if err != nil {
@@ -190,7 +190,7 @@ func (p *Public) evictIfOver() {
 		}
 		info, ierr := d.Info()
 		if ierr != nil {
-			return nil
+			return nil //nolint:nilerr // skip unreadable entries; eviction is best-effort
 		}
 		total += info.Size()
 		entries = append(entries, fileEntry{
@@ -238,5 +238,5 @@ func writePublicError(w http.ResponseWriter, status int, code, message string) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(envelope{Error: payload{Code: code, Message: message}})
+	json.NewEncoder(w).Encode(envelope{Error: payload{Code: code, Message: message}}) //nolint:errcheck // error path; nothing useful to do if encoding fails
 }

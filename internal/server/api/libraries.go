@@ -578,9 +578,11 @@ func (a *API) libTx(ctx context.Context, fn func(*queries.Queries) (queries.Libr
 	return lib, nil
 }
 
-type libraryHandler func(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID)
-type libraryUserHandler func(w http.ResponseWriter, r *http.Request, libraryID, userID uuid.UUID)
-type libraryRunHandler func(w http.ResponseWriter, r *http.Request, libraryID, runID uuid.UUID)
+type (
+	libraryHandler     func(w http.ResponseWriter, r *http.Request, libraryID uuid.UUID)
+	libraryUserHandler func(w http.ResponseWriter, r *http.Request, libraryID, userID uuid.UUID)
+	libraryRunHandler  func(w http.ResponseWriter, r *http.Request, libraryID, runID uuid.UUID)
+)
 
 func withLibraryID(fn libraryHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
