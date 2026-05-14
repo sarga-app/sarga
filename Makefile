@@ -128,7 +128,13 @@ sqlc-check: ## CI: fail if sqlc output is out of date
 docker: ## Build Docker image tagged sarga:dev
 	@docker build -f deploy/Dockerfile --build-arg VERSION=$(VERSION) -t sarga:dev .
 
-ci: tidy-check fmt-check vet lint test vuln sqlc-check api-check build ## Run the full CI suite locally
+smoke: build-go ## CI: build a binary and verify it boots (`version`, `--help`, `healthcheck`)
+	@./$(BIN) version >/dev/null
+	@./$(BIN) --help >/dev/null
+	@! ./$(BIN) healthcheck --addr 127.0.0.1:1 --timeout 1s >/dev/null 2>&1 || \
+	  { echo "healthcheck should fail dialling a closed port"; exit 1; }
+
+ci: tidy-check sqlc-check api-check api-lint fmt-check vet lint test vuln build smoke ## Run the full CI suite locally (mirrors .github/workflows/ci.yml)
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 ## ── Setup ─────────────────────────────────────────────────────────────────────
@@ -143,5 +149,5 @@ tools: ## Install Go dev tools (golangci-lint, govulncheck, goimports)
         fmt fmt-check vet lint tidy tidy-check vuln \
         test \
         api-gen api-check api-lint sqlc sqlc-check \
-        docker ci \
+        docker ci smoke \
         tools
