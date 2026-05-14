@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/sarga-app/sarga/internal/db/queries"
@@ -32,6 +33,25 @@ type DBEntry struct {
 	SizeBytes int64
 }
 
+// FolderEvent groups every audio file the reconciler saw under one directory.
+// Files appear in deterministic order (lexical by path). Removed files do not
+// belong to any folder and are returned separately by ReconcileFolders.
+type FolderEvent struct {
+	Dir   string
+	Files []FileEvent
+}
+
+// HasWork reports whether the folder contains any file that needs processing
+// (i.e. a file that's new or changed since the last scan).
+func (f FolderEvent) HasWork() bool {
+	for _, e := range f.Files {
+		if e.Kind == EventAdded || e.Kind == EventChanged {
+			return true
+		}
+	}
+	return false
+}
+
 type ScanSettings struct {
 	Extensions     map[string]struct{}
 	FollowSymlinks bool
@@ -57,34 +77,23 @@ func NewReconciler(rq *queries.Queries) *Reconciler {
 	return &Reconciler{rq: rq}
 }
 
-func (r *Reconciler) Reconcile(
+// ReconcileFolders walks the library root, groups every audio file by its
+// parent directory, and returns one FolderEvent per directory that contained
+// at least one audio file. Files in the DB whose path wasn't seen on disk are
+// returned in `removed`.
+//
+// This is synchronous on purpose: the parallelism we want lives in the
+// scanner pipeline (parallel hash/tag-extract → serial per-folder tx).
+// Streaming events during the walk added contention without buying anything,
+// and the entire reconciliation footprint at 100k files is ~15MB of paths.
+func (r *Reconciler) ReconcileFolders(
 	ctx context.Context,
 	libraryID, root string,
 	settings ScanSettings,
-) (events <-chan FileEvent, errc <-chan error) {
-	evCh := make(chan FileEvent, 64)
-	errCh := make(chan error, 1)
-
-	go func() {
-		defer close(evCh)
-		defer close(errCh)
-
-		if err := r.reconcile(ctx, libraryID, root, settings, evCh); err != nil {
-			errCh <- err
-		}
-	}()
-	return evCh, errCh
-}
-
-func (r *Reconciler) reconcile(
-	ctx context.Context,
-	libraryID, root string,
-	settings ScanSettings,
-	out chan<- FileEvent,
-) error {
+) (folders []FolderEvent, removed []FileEvent, err error) {
 	snapshots, err := r.rq.ListTrackFileSnapshots(ctx, libraryID)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	stored := make(map[string]DBEntry, len(snapshots))
 	for _, s := range snapshots {
@@ -95,6 +104,7 @@ func (r *Reconciler) reconcile(
 		}
 	}
 
+	byDir := make(map[string][]FileEvent)
 	found := make(map[string]struct{}, len(snapshots))
 
 	walkFn := func(path string, d fs.DirEntry, walkErr error) error {
@@ -104,87 +114,76 @@ func (r *Reconciler) reconcile(
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-
 		if strings.HasPrefix(d.Name(), ".") {
 			if d.IsDir() {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-
 		if d.IsDir() {
 			return nil
 		}
-
-		if d.Type()&fs.ModeSymlink != 0 {
-			if !settings.FollowSymlinks {
-				return nil
-			}
-		}
-
-		ext := strings.ToLower(filepath.Ext(path))
-		if _, ok := settings.Extensions[ext]; !ok {
+		if d.Type()&fs.ModeSymlink != 0 && !settings.FollowSymlinks {
 			return nil
 		}
-
-		info, err := d.Info()
-		if err != nil {
+		if _, ok := settings.Extensions[strings.ToLower(filepath.Ext(path))]; !ok {
+			return nil
+		}
+		info, ierr := d.Info()
+		if ierr != nil {
 			return nil //nolint:nilerr // stat failed; skip this file, don't abort walk
 		}
 
 		found[path] = struct{}{}
+		dir := filepath.Dir(path)
 
-		stored, ok := stored[path]
-		if !ok {
-			select {
-			case out <- FileEvent{Kind: EventAdded, AbsPath: path, Info: info}:
-			case <-ctx.Done():
-				return ctx.Err()
+		ev := FileEvent{AbsPath: path, Info: info}
+		if existing, ok := stored[path]; ok {
+			entry := existing
+			ev.DBEntry = &entry
+			diskMTime := info.ModTime().UTC().Format("2006-01-02T15:04:05Z")
+			if diskMTime != existing.MTime || info.Size() != existing.SizeBytes {
+				ev.Kind = EventChanged
+			} else {
+				ev.Kind = EventUnchanged
 			}
-			return nil
+		} else {
+			ev.Kind = EventAdded
 		}
 
-		// Compare mtime and size (tier-1 change detection).
-		storedTime := stored.MTime
-		diskMTime := info.ModTime().UTC().Format("2006-01-02T15:04:05Z")
-		entry := stored
-		kind := EventUnchanged
-		if diskMTime != storedTime || info.Size() != stored.SizeBytes {
-			kind = EventChanged
-		}
-		select {
-		case out <- FileEvent{Kind: kind, AbsPath: path, DBEntry: &entry, Info: info}:
-		case <-ctx.Done():
-			return ctx.Err()
-		}
+		byDir[dir] = append(byDir[dir], ev)
 		return nil
 	}
 
 	walkRoot := os.DirFS(root)
 	if settings.FollowSymlinks {
-		if err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-			return walkFn(path, d, err)
-		}); err != nil {
-			return err
+		if werr := filepath.WalkDir(root, func(path string, d fs.DirEntry, e error) error {
+			return walkFn(path, d, e)
+		}); werr != nil {
+			return nil, nil, werr
 		}
 	} else {
-		if err := fs.WalkDir(walkRoot, ".", func(rel string, d fs.DirEntry, err error) error {
+		if werr := fs.WalkDir(walkRoot, ".", func(rel string, d fs.DirEntry, e error) error {
 			abs := filepath.Join(root, rel)
-			return walkFn(abs, d, err)
-		}); err != nil {
-			return err
+			return walkFn(abs, d, e)
+		}); werr != nil {
+			return nil, nil, werr
 		}
 	}
+
+	folders = make([]FolderEvent, 0, len(byDir))
+	for dir, files := range byDir {
+		sort.Slice(files, func(i, j int) bool { return files[i].AbsPath < files[j].AbsPath })
+		folders = append(folders, FolderEvent{Dir: dir, Files: files})
+	}
+	sort.Slice(folders, func(i, j int) bool { return folders[i].Dir < folders[j].Dir })
 
 	for absPath, entry := range stored {
 		if _, seen := found[absPath]; !seen {
 			e := entry
-			select {
-			case out <- FileEvent{Kind: EventRemoved, AbsPath: absPath, DBEntry: &e}:
-			case <-ctx.Done():
-				return ctx.Err()
-			}
+			removed = append(removed, FileEvent{Kind: EventRemoved, AbsPath: absPath, DBEntry: &e})
 		}
 	}
-	return nil
+
+	return folders, removed, nil
 }

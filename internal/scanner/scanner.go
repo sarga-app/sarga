@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -58,7 +57,6 @@ func (s *Scanner) Scan(ctx context.Context, libraryID string) error {
 		return nil
 	}
 
-	// 409 guard: reject if a scan is already running for this catalog.
 	active, err := s.rq.GetActiveScanRun(ctx, libraryID)
 	if err == nil && active.ID != "" {
 		return ErrScanAlreadyRunning
@@ -195,6 +193,8 @@ func (s *Scanner) runScan(
 	return st, nil
 }
 
+// processPath walks one library root, groups files by folder, and runs the
+// pipeline: parallel hash+tag-extract per folder → serial per-folder tx.
 func (s *Scanner) processPath(
 	ctx context.Context,
 	libraryID, root string,
@@ -202,104 +202,232 @@ func (s *Scanner) processPath(
 	workerN int,
 	st *scanProgress,
 ) error {
-	events, errc := s.rec.Reconcile(ctx, libraryID, root, cfg)
+	walkStart := time.Now()
+	folders, removed, err := s.rec.ReconcileFolders(ctx, libraryID, root, cfg)
+	if err != nil {
+		return err
+	}
+	slog.Debug("scan: walk", "elapsed", time.Since(walkStart),
+		"folders", len(folders), "removed", len(removed))
 
-	sem := make(chan struct{}, workerN)
+	// Account for stat-clean files and removed files now; the pipeline below
+	// only touches folders with actual work.
+	for _, f := range folders {
+		for _, ev := range f.Files {
+			st.mu.Lock()
+			st.foundPaths = append(st.foundPaths, ev.AbsPath)
+			if ev.Kind == EventUnchanged {
+				st.total++
+				st.unchanged++
+			}
+			st.mu.Unlock()
+		}
+	}
+	if len(removed) > 0 {
+		st.mu.Lock()
+		st.removed += int64(len(removed))
+		st.mu.Unlock()
+	}
+
+	pipeStart := time.Now()
+	in := make(chan FolderEvent, workerN)
+	out := make(chan *preparedFolder, workerN)
+
+	go func() {
+		defer close(in)
+		for _, f := range folders {
+			if !f.HasWork() {
+				continue
+			}
+			select {
+			case in <- f:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	var wg sync.WaitGroup
+	for range workerN {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for f := range in {
+				pf := s.prepareFolder(f, st)
+				if pf == nil {
+					continue
+				}
+				select {
+				case out <- pf:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+	}
+	go func() { wg.Wait(); close(out) }()
 
-	for ev := range events {
-		switch ev.Kind {
-		case EventAdded:
-			slog.Debug("scan: file added", "path", ev.AbsPath)
-			st.mu.Lock()
-			st.foundPaths = append(st.foundPaths, ev.AbsPath)
-			st.mu.Unlock()
-			wg.Add(1)
-			sem <- struct{}{}
-			go func(e FileEvent) {
-				defer func() { <-sem; wg.Done() }()
-				s.processFile(ctx, libraryID, e, st)
-			}(ev)
+	persistStart := time.Now()
+	var persistedFolders int
+	for pf := range out {
+		if err := s.persistFolder(ctx, libraryID, pf, st); err != nil {
+			slog.Error("scan: persist folder", "dir", pf.dir, "err", err)
+		}
+		persistedFolders++
+	}
 
-		case EventChanged:
-			slog.Debug("scan: file changed", "path", ev.AbsPath)
-			st.mu.Lock()
-			st.foundPaths = append(st.foundPaths, ev.AbsPath)
-			st.mu.Unlock()
-			wg.Add(1)
-			sem <- struct{}{}
-			go func(e FileEvent) {
-				defer func() { <-sem; wg.Done() }()
-				s.processFile(ctx, libraryID, e, st)
-			}(ev)
+	slog.Debug("scan: pipeline",
+		"folders_with_work", persistedFolders,
+		"prepare_wall", persistStart.Sub(pipeStart).Round(time.Millisecond),
+		"total_wall", time.Since(pipeStart).Round(time.Millisecond),
+	)
+	return nil
+}
 
-		case EventUnchanged:
-			st.mu.Lock()
-			st.total++
-			st.unchanged++
-			st.foundPaths = append(st.foundPaths, ev.AbsPath)
-			st.mu.Unlock()
+// preparedFolder is the output of phase 1a (parallel hash + tag extract +
+// cover-art resolve). Phase 1b (persistFolder) consumes it inside one tx.
+type preparedFolder struct {
+	dir         string
+	files       []preparedFile
+	artHash     string
+	artFromFile bool // true = embedded, false = folder.jpg
+}
 
-		case EventRemoved:
-			slog.Debug("scan: file removed", "path", ev.AbsPath)
+type preparedFile struct {
+	ev   FileEvent
+	hash []byte
+	meta catalog.Metadata
+}
+
+func (s *Scanner) prepareFolder(f FolderEvent, st *scanProgress) *preparedFolder {
+	pf := &preparedFolder{dir: f.Dir}
+	for _, ev := range f.Files {
+		if ev.Kind != EventAdded && ev.Kind != EventChanged {
+			continue
+		}
+		hash, err := HashFile(ev.AbsPath)
+		if err != nil {
+			slog.Warn("scan: hash failed", "path", ev.AbsPath, "err", err)
+			st.recordErr()
+			continue
+		}
+		meta, err := catalog.Extract(ev.AbsPath)
+		if err != nil {
+			slog.Warn("scan: tag extract failed", "path", ev.AbsPath, "err", err)
+			st.recordErr()
+			continue
+		}
+		slog.Debug("scan: file",
+			"path", ev.AbsPath, "title", meta.Title,
+			"duration_ms", meta.DurationMs, "format", meta.Format)
+		pf.files = append(pf.files, preparedFile{ev: ev, hash: hash, meta: meta})
+	}
+	if len(pf.files) == 0 {
+		return nil
+	}
+
+	for _, pfile := range pf.files {
+		if len(pfile.meta.EmbeddedArt) > 0 {
+			if h, err := s.art.ProcessEmbedded(pfile.meta.EmbeddedArt); err == nil && h != "" {
+				pf.artHash = h
+				pf.artFromFile = true
+				break
+			}
+		}
+	}
+	if pf.artHash == "" {
+		if h, err := s.art.FindFolderArt(pf.dir); err == nil && h != "" {
+			pf.artHash = h
+		}
+	}
+	return pf
+}
+
+func (s *Scanner) persistFolder(
+	ctx context.Context,
+	libraryID string,
+	pf *preparedFolder,
+	st *scanProgress,
+) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck // commit replaces this when successful
+
+	q := queries.New(tx)
+	lead := pf.files[0].meta
+
+	artistID, err := getOrCreateArtist(ctx, q, lead)
+	if err != nil {
+		return fmt.Errorf("artist: %w", err)
+	}
+	rgID, err := getOrCreateReleaseGroup(ctx, q, lead)
+	if err != nil {
+		return fmt.Errorf("release_group: %w", err)
+	}
+	releaseID, err := getOrCreateRelease(ctx, q, lead, rgID)
+	if err != nil {
+		return fmt.Errorf("release: %w", err)
+	}
+
+	q.LinkReleaseArtist(ctx, queries.LinkReleaseArtistParams{ //nolint:errcheck
+		ReleaseID: releaseID, ArtistID: artistID, Position: 1, Role: "primary",
+	})
+
+	for _, file := range pf.files {
+		if err := s.persistFile(ctx, q, libraryID, releaseID, artistID, file, st); err != nil {
+			slog.Error("scan: persist file", "path", file.ev.AbsPath, "err", err)
 			st.mu.Lock()
-			st.removed++
+			st.errored++
 			st.mu.Unlock()
 		}
 	}
 
-	wg.Wait()
-	return <-errc
-}
-
-func (s *Scanner) processFile(ctx context.Context, libraryID string, ev FileEvent, st *scanProgress) {
-	hash, err := HashFile(ev.AbsPath)
-	if err != nil {
-		slog.Warn("scan: hash failed", "path", ev.AbsPath, "err", err)
-		st.recordErr()
-		return
-	}
-	meta, err := catalog.Extract(ev.AbsPath)
-	if err != nil {
-		slog.Warn("scan: tag extract failed", "path", ev.AbsPath, "err", err)
-		st.recordErr()
-		return
-	}
-	slog.Debug("scan: file", "path", ev.AbsPath, "title", meta.Title, "duration_ms", meta.DurationMs, "format", meta.Format)
-	artHash := ""
-	if len(meta.EmbeddedArt) > 0 {
-		artHash, _ = s.art.ProcessEmbedded(meta.EmbeddedArt) //nolint:errcheck
-	}
-	if artHash == "" {
-		artHash, _ = s.art.FindFolderArt(filepath.Dir(ev.AbsPath)) //nolint:errcheck
+	if pf.artHash != "" {
+		kind := "folder"
+		if pf.artFromFile {
+			kind = "embedded"
+		}
+		if _, err := q.UpsertCoverArt(ctx, queries.UpsertCoverArtParams{
+			ID:          uuid.NewString(),
+			ReleaseID:   &releaseID,
+			SourceKind:  kind,
+			Uri:         pf.artHash,
+			IsPreferred: true,
+		}); err != nil {
+			slog.Error("scan: upsert cover art", "release_id", releaseID, "err", err)
+		}
 	}
 
-	// Serialize all DB work — prevents get-or-create races between workers.
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+
 	st.mu.Lock()
-	defer st.mu.Unlock()
-
-	if err := s.upsertFile(ctx, libraryID, ev, hash, meta, artHash, st); err != nil {
-		st.errored++
-	}
 	st.maybeFlush(ctx, s.wq)
+	st.mu.Unlock()
+	return nil
 }
 
-func (s *Scanner) upsertFile(
+func (s *Scanner) persistFile(
 	ctx context.Context,
-	libraryID string,
-	ev FileEvent,
-	hash []byte,
-	meta catalog.Metadata,
-	artHash string,
+	q *queries.Queries,
+	libraryID, releaseID, artistID string,
+	file preparedFile,
 	st *scanProgress,
 ) error {
+	ev := file.ev
+	meta := file.meta
+	hash := file.hash
+
 	if ev.Kind == EventChanged && ev.DBEntry != nil { //nolint:nestif
-		existing, err := s.rq.GetTrackFileByPath(ctx, queries.GetTrackFileByPathParams{
+		existing, err := q.GetTrackFileByPath(ctx, queries.GetTrackFileByPathParams{
 			LibraryID:    libraryID,
 			RelativePath: ev.AbsPath,
 		})
 		if err == nil && bytes.Equal(existing.ContentHash, hash) {
-			if err2 := s.wq.UpdateTrackFileCore(ctx, queries.UpdateTrackFileCoreParams{
+			if err2 := q.UpdateTrackFileCore(ctx, queries.UpdateTrackFileCoreParams{
 				TrackID:       existing.TrackID,
 				Format:        existing.Format,
 				Codec:         existing.Codec,
@@ -317,37 +445,24 @@ func (s *Scanner) upsertFile(
 				RgAlbumPeak:   existing.RgAlbumPeak,
 				ID:            existing.ID,
 			}); err2 != nil {
-				slog.Error("scan: update unchanged file core", "path", ev.AbsPath, "err", err2)
+				slog.Error("scan: refresh unchanged file core", "path", ev.AbsPath, "err", err2)
 			}
+			st.mu.Lock()
 			st.unchanged++
+			st.mu.Unlock()
 			return nil
 		}
 	}
 
-	artistID, err := s.getOrCreateArtist(ctx, meta)
-	if err != nil {
-		return err
-	}
-	rgID, err := s.getOrCreateReleaseGroup(ctx, meta)
-	if err != nil {
-		return err
-	}
-	releaseID, err := s.getOrCreateRelease(ctx, meta, rgID)
-	if err != nil {
-		return err
-	}
-	trackID, err := s.getOrCreateTrack(ctx, meta)
+	trackID, err := getOrCreateTrack(ctx, q, meta)
 	if err != nil {
 		return err
 	}
 
-	s.wq.LinkReleaseArtist(ctx, queries.LinkReleaseArtistParams{ //nolint:errcheck
-		ReleaseID: releaseID, ArtistID: artistID, Position: 1, Role: "primary",
-	})
-	s.wq.LinkTrackArtist(ctx, queries.LinkTrackArtistParams{ //nolint:errcheck
+	q.LinkTrackArtist(ctx, queries.LinkTrackArtistParams{ //nolint:errcheck
 		TrackID: trackID, ArtistID: artistID, Position: 1, Role: "primary",
 	})
-	s.wq.UpsertReleaseTrack(ctx, queries.UpsertReleaseTrackParams{ //nolint:errcheck
+	q.UpsertReleaseTrack(ctx, queries.UpsertReleaseTrackParams{ //nolint:errcheck
 		ReleaseID:  releaseID,
 		TrackID:    trackID,
 		DiscNumber: int64(max(meta.DiscNum, 1)),
@@ -356,7 +471,6 @@ func (s *Scanner) upsertFile(
 
 	mtime := ev.Info.ModTime().UTC().Format(time.RFC3339)
 	lossless := meta.Format == "flac" || meta.Format == "alac" || meta.Format == "wav" || meta.Format == "aiff"
-
 	rgGain, rgPeak, raGain, raPeak := optFloat(meta.RGTrackGain), optFloat(meta.RGTrackPeak), optFloat(meta.RGAlbumGain), optFloat(meta.RGAlbumPeak)
 	bitrate, sampleRate, bitDepth := optInt64(meta.Bitrate), optInt64(meta.SampleRate), optInt64(meta.BitsPerSample)
 	channels := int64(meta.Channels)
@@ -366,7 +480,7 @@ func (s *Scanner) upsertFile(
 
 	var trackFileID string
 	if ev.Kind == EventAdded {
-		row, err := s.wq.InsertTrackFile(ctx, queries.InsertTrackFileParams{
+		row, err := q.InsertTrackFile(ctx, queries.InsertTrackFileParams{
 			ID:              uuid.NewString(),
 			TrackID:         trackID,
 			LibraryID:       libraryID,
@@ -394,9 +508,11 @@ func (s *Scanner) upsertFile(
 			return err
 		}
 		trackFileID = row.ID
+		st.mu.Lock()
 		st.added++
+		st.mu.Unlock()
 	} else {
-		existing, err := s.rq.GetTrackFileByPath(ctx, queries.GetTrackFileByPathParams{
+		existing, err := q.GetTrackFileByPath(ctx, queries.GetTrackFileByPathParams{
 			LibraryID:    libraryID,
 			RelativePath: ev.AbsPath,
 		})
@@ -404,7 +520,7 @@ func (s *Scanner) upsertFile(
 			return err
 		}
 		trackFileID = existing.ID
-		if err2 := s.wq.UpdateTrackFileCore(ctx, queries.UpdateTrackFileCoreParams{
+		if err2 := q.UpdateTrackFileCore(ctx, queries.UpdateTrackFileCoreParams{
 			TrackID:       trackID,
 			Format:        meta.Format,
 			Codec:         meta.Codec,
@@ -424,23 +540,13 @@ func (s *Scanner) upsertFile(
 		}); err2 != nil {
 			slog.Error("scan: update track file core", "path", ev.AbsPath, "err", err2)
 		}
+		st.mu.Lock()
 		st.updated++
-	}
-
-	if artHash != "" {
-		if _, err := s.wq.UpsertCoverArt(ctx, queries.UpsertCoverArtParams{
-			ID:          uuid.NewString(),
-			ReleaseID:   &releaseID,
-			SourceKind:  artSourceKind(meta),
-			Uri:         artHash,
-			IsPreferred: true,
-		}); err != nil {
-			slog.Error("scan: upsert cover art", "release_id", releaseID, "err", err)
-		}
+		st.mu.Unlock()
 	}
 
 	if meta.Lyrics != "" {
-		if err := s.wq.UpsertLyrics(ctx, queries.UpsertLyricsParams{
+		if err := q.UpsertLyrics(ctx, queries.UpsertLyricsParams{
 			ID:       uuid.NewString(),
 			TrackID:  trackID,
 			Source:   "embedded",
@@ -455,7 +561,7 @@ func (s *Scanner) upsertFile(
 	if meta.HasMBID() {
 		priority = 10
 	}
-	if err := s.wq.EnqueueTrackFile(ctx, queries.EnqueueTrackFileParams{
+	if err := q.EnqueueTrackFile(ctx, queries.EnqueueTrackFileParams{
 		ID:          uuid.NewString(),
 		TrackFileID: trackFileID,
 		LibraryID:   libraryID,
@@ -463,11 +569,10 @@ func (s *Scanner) upsertFile(
 	}); err != nil {
 		slog.Error("scan: enqueue track file", "track_file_id", trackFileID, "err", err)
 	}
-
 	return nil
 }
 
-func (s *Scanner) getOrCreateArtist(ctx context.Context, meta catalog.Metadata) (string, error) {
+func getOrCreateArtist(ctx context.Context, q *queries.Queries, meta catalog.Metadata) (string, error) {
 	name := meta.AlbumArtist
 	if name == "" {
 		name = meta.PrimaryArtist()
@@ -480,7 +585,7 @@ func (s *Scanner) getOrCreateArtist(ctx context.Context, meta catalog.Metadata) 
 
 	if meta.MBArtistID != "" {
 		mbid := meta.MBArtistID
-		row, err := s.rq.GetArtistByMBID(ctx, &mbid)
+		row, err := q.GetArtistByMBID(ctx, &mbid)
 		if err == nil {
 			return row.ID, nil
 		}
@@ -489,7 +594,7 @@ func (s *Scanner) getOrCreateArtist(ctx context.Context, meta catalog.Metadata) 
 		}
 	}
 
-	row, err := s.rq.GetArtistByName(ctx, name)
+	row, err := q.GetArtistByName(ctx, name)
 	if err == nil {
 		return row.ID, nil
 	}
@@ -502,7 +607,7 @@ func (s *Scanner) getOrCreateArtist(ctx context.Context, meta catalog.Metadata) 
 		mbidPtr = &meta.MBArtistID
 	}
 	slog.Debug("scan: new artist", "name", name)
-	inserted, err := s.wq.InsertArtist(ctx, queries.InsertArtistParams{
+	inserted, err := q.InsertArtist(ctx, queries.InsertArtistParams{
 		ID:               uuid.NewString(),
 		Mbid:             mbidPtr,
 		Name:             name,
@@ -515,7 +620,7 @@ func (s *Scanner) getOrCreateArtist(ctx context.Context, meta catalog.Metadata) 
 	return inserted.ID, nil
 }
 
-func (s *Scanner) getOrCreateReleaseGroup(ctx context.Context, meta catalog.Metadata) (string, error) {
+func getOrCreateReleaseGroup(ctx context.Context, q *queries.Queries, meta catalog.Metadata) (string, error) {
 	title := meta.Album
 	if title == "" {
 		title = "Unknown Album"
@@ -523,7 +628,7 @@ func (s *Scanner) getOrCreateReleaseGroup(ctx context.Context, meta catalog.Meta
 
 	if meta.MBReleaseID != "" {
 		mbid := meta.MBReleaseID
-		rg, err := s.rq.GetReleaseGroupByMBID(ctx, &mbid)
+		rg, err := q.GetReleaseGroupByMBID(ctx, &mbid)
 		if err == nil {
 			return rg.ID, nil
 		}
@@ -532,7 +637,7 @@ func (s *Scanner) getOrCreateReleaseGroup(ctx context.Context, meta catalog.Meta
 		}
 	}
 
-	rg, err := s.rq.GetReleaseGroupByTitle(ctx, title)
+	rg, err := q.GetReleaseGroupByTitle(ctx, title)
 	if err == nil {
 		return rg.ID, nil
 	}
@@ -545,7 +650,7 @@ func (s *Scanner) getOrCreateReleaseGroup(ctx context.Context, meta catalog.Meta
 	if year > 0 {
 		yearPtr = &year
 	}
-	inserted, err := s.wq.InsertReleaseGroup(ctx, queries.InsertReleaseGroupParams{
+	inserted, err := q.InsertReleaseGroup(ctx, queries.InsertReleaseGroupParams{
 		ID:               uuid.NewString(),
 		Title:            title,
 		PrimaryType:      "album",
@@ -557,7 +662,7 @@ func (s *Scanner) getOrCreateReleaseGroup(ctx context.Context, meta catalog.Meta
 	return inserted.ID, nil
 }
 
-func (s *Scanner) getOrCreateRelease(ctx context.Context, meta catalog.Metadata, rgID string) (string, error) {
+func getOrCreateRelease(ctx context.Context, q *queries.Queries, meta catalog.Metadata, rgID string) (string, error) {
 	title := meta.Album
 	if title == "" {
 		title = "Unknown Album"
@@ -565,7 +670,7 @@ func (s *Scanner) getOrCreateRelease(ctx context.Context, meta catalog.Metadata,
 
 	if meta.MBReleaseID != "" {
 		mbid := meta.MBReleaseID
-		rel, err := s.rq.GetReleaseByMBID(ctx, &mbid)
+		rel, err := q.GetReleaseByMBID(ctx, &mbid)
 		if err == nil {
 			return rel.ID, nil
 		}
@@ -574,7 +679,7 @@ func (s *Scanner) getOrCreateRelease(ctx context.Context, meta catalog.Metadata,
 		}
 	}
 
-	rel, err := s.rq.GetReleaseByGroupAndTitle(ctx, queries.GetReleaseByGroupAndTitleParams{
+	rel, err := q.GetReleaseByGroupAndTitle(ctx, queries.GetReleaseByGroupAndTitleParams{
 		ReleaseGroupID: rgID,
 		Title:          title,
 	})
@@ -595,7 +700,7 @@ func (s *Scanner) getOrCreateRelease(ctx context.Context, meta catalog.Metadata,
 		datePtr = &d
 	}
 	totalDiscs := int64(max(meta.DiscTotal, 1))
-	inserted, err := s.wq.InsertRelease(ctx, queries.InsertReleaseParams{
+	inserted, err := q.InsertRelease(ctx, queries.InsertReleaseParams{
 		ID:             uuid.NewString(),
 		Mbid:           mbidPtr,
 		ReleaseGroupID: rgID,
@@ -609,7 +714,7 @@ func (s *Scanner) getOrCreateRelease(ctx context.Context, meta catalog.Metadata,
 	return inserted.ID, nil
 }
 
-func (s *Scanner) getOrCreateTrack(ctx context.Context, meta catalog.Metadata) (string, error) {
+func getOrCreateTrack(ctx context.Context, q *queries.Queries, meta catalog.Metadata) (string, error) {
 	title := meta.Title
 	if title == "" {
 		title = "Unknown Track"
@@ -617,10 +722,10 @@ func (s *Scanner) getOrCreateTrack(ctx context.Context, meta catalog.Metadata) (
 
 	if meta.MBRecordingID != "" { //nolint:nestif
 		mbid := meta.MBRecordingID
-		row, err := s.rq.GetTrackByMBID(ctx, &mbid)
+		row, err := q.GetTrackByMBID(ctx, &mbid)
 		if err == nil {
 			if meta.DurationMs > 0 {
-				if err2 := s.wq.UpdateTrackDurationIfNull(ctx, queries.UpdateTrackDurationIfNullParams{
+				if err2 := q.UpdateTrackDurationIfNull(ctx, queries.UpdateTrackDurationIfNullParams{
 					DurationMs: &meta.DurationMs,
 					ID:         row.ID,
 				}); err2 != nil {
@@ -656,7 +761,7 @@ func (s *Scanner) getOrCreateTrack(ctx context.Context, meta catalog.Metadata) (
 		d := meta.DurationMs
 		durPtr = &d
 	}
-	inserted, err := s.wq.InsertTrack(ctx, queries.InsertTrackParams{
+	inserted, err := q.InsertTrack(ctx, queries.InsertTrackParams{
 		ID:         uuid.NewString(),
 		Mbid:       mbidPtr,
 		Title:      title,
@@ -688,6 +793,7 @@ func (st *scanProgress) recordErr() {
 	st.mu.Unlock()
 }
 
+// maybeFlush assumes st.mu is held by the caller.
 func (st *scanProgress) maybeFlush(ctx context.Context, wq *queries.Queries) {
 	st.total++
 	if st.total-st.flushed.total < progressFlushEvery {
@@ -725,13 +831,6 @@ func optInt64(n int) *int64 {
 	}
 	v := int64(n)
 	return &v
-}
-
-func artSourceKind(meta catalog.Metadata) string {
-	if len(meta.EmbeddedArt) > 0 {
-		return "embedded"
-	}
-	return "folder"
 }
 
 func markMissingTrackFiles(ctx context.Context, sqlDB *sql.DB, libraryID string, foundPaths []string) error {
