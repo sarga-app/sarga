@@ -15,6 +15,7 @@ import (
 
 	"github.com/sarga-app/sarga/internal/catalog"
 	"github.com/sarga-app/sarga/internal/db/queries"
+	"github.com/sarga-app/sarga/internal/providers"
 )
 
 type preparedFolder struct {
@@ -248,12 +249,13 @@ func (s *Scanner) persistFile(
 		Position:   int64(file.meta.TrackNum),
 	})
 
-	trackFileID, err := writeTrackFile(ctx, q, libraryID, trackID, file, pr)
+	match := s.matcher.Match(ctx, file.meta)
+	trackFileID, err := s.writeTrackFile(ctx, q, libraryID, trackID, file, match, pr)
 	if err != nil {
 		return err
 	}
 
-	attachFileExtras(ctx, q, libraryID, trackID, trackFileID, file.meta)
+	attachFileExtras(ctx, q, trackID, trackFileID, file.meta)
 	return nil
 }
 
@@ -332,11 +334,72 @@ func tryRepathByHash(
 	return row.ID, true, nil
 }
 
-func writeTrackFile(
+func insertTrackFile(
 	ctx context.Context,
 	q *queries.Queries,
 	libraryID, trackID string,
 	file preparedFile,
+	match *providers.MatchResult,
+	mtime string,
+	lossless bool,
+	channels int64,
+	pr *progress,
+) (string, error) {
+	if id, ok, err := tryRepathByHash(ctx, q, libraryID, file, mtime); err != nil {
+		return "", err
+	} else if ok {
+		pr.recordMoved()
+		return id, nil
+	}
+	preferred, err := q.HasPreferredTrackFile(ctx, trackID)
+	if err != nil {
+		return "", err
+	}
+	matchSource := "raw"
+	matchConfidence := 0.0
+	if match != nil {
+		matchSource = match.Source
+		matchConfidence = match.Confidence
+	}
+	meta := file.meta
+	ev := file.ev
+	row, err := q.InsertTrackFile(ctx, queries.InsertTrackFileParams{
+		ID:              uuid.NewString(),
+		TrackID:         trackID,
+		LibraryID:       libraryID,
+		RelativePath:    ev.AbsPath,
+		Format:          meta.Format,
+		Codec:           meta.Codec,
+		BitrateKbps:     optInt64(meta.Bitrate),
+		SampleRateHz:    optInt64(meta.SampleRate),
+		BitDepth:        optInt64(meta.BitsPerSample),
+		Channels:        channels,
+		FileSizeBytes:   ev.Info.Size(),
+		Mtime:           mtime,
+		ContentHash:     file.hash,
+		SourceKind:      "import",
+		IsLossless:      lossless,
+		IsPreferred:     !preferred,
+		MatchConfidence: matchConfidence,
+		MatchSource:     matchSource,
+		RgTrackGain:     optFloat(meta.RGTrackGain),
+		RgTrackPeak:     optFloat(meta.RGTrackPeak),
+		RgAlbumGain:     optFloat(meta.RGAlbumGain),
+		RgAlbumPeak:     optFloat(meta.RGAlbumPeak),
+	})
+	if err != nil {
+		return "", err
+	}
+	pr.recordAdded()
+	return row.ID, nil
+}
+
+func (s *Scanner) writeTrackFile(
+	ctx context.Context,
+	q *queries.Queries,
+	libraryID, trackID string,
+	file preparedFile,
+	match *providers.MatchResult,
 	pr *progress,
 ) (string, error) {
 	meta := file.meta
@@ -350,45 +413,7 @@ func writeTrackFile(
 	}
 
 	if ev.Kind == EventAdded {
-		if id, ok, err := tryRepathByHash(ctx, q, libraryID, file, mtime); err != nil {
-			return "", err
-		} else if ok {
-			pr.recordMoved()
-			return id, nil
-		}
-		preferred, err := q.HasPreferredTrackFile(ctx, trackID)
-		if err != nil {
-			return "", err
-		}
-		row, err := q.InsertTrackFile(ctx, queries.InsertTrackFileParams{
-			ID:              uuid.NewString(),
-			TrackID:         trackID,
-			LibraryID:       libraryID,
-			RelativePath:    ev.AbsPath,
-			Format:          meta.Format,
-			Codec:           meta.Codec,
-			BitrateKbps:     optInt64(meta.Bitrate),
-			SampleRateHz:    optInt64(meta.SampleRate),
-			BitDepth:        optInt64(meta.BitsPerSample),
-			Channels:        channels,
-			FileSizeBytes:   ev.Info.Size(),
-			Mtime:           mtime,
-			ContentHash:     file.hash,
-			SourceKind:      "import",
-			IsLossless:      lossless,
-			IsPreferred:     !preferred,
-			MatchConfidence: 0,
-			MatchSource:     "raw",
-			RgTrackGain:     optFloat(meta.RGTrackGain),
-			RgTrackPeak:     optFloat(meta.RGTrackPeak),
-			RgAlbumGain:     optFloat(meta.RGAlbumGain),
-			RgAlbumPeak:     optFloat(meta.RGAlbumPeak),
-		})
-		if err != nil {
-			return "", err
-		}
-		pr.recordAdded()
-		return row.ID, nil
+		return insertTrackFile(ctx, q, libraryID, trackID, file, match, mtime, lossless, channels, pr)
 	}
 
 	existing, err := q.GetTrackFileByPath(ctx, queries.GetTrackFileByPathParams{
@@ -425,32 +450,21 @@ func writeTrackFile(
 func attachFileExtras(
 	ctx context.Context,
 	q *queries.Queries,
-	libraryID, trackID, trackFileID string,
+	trackID, trackFileID string,
 	meta catalog.Metadata,
 ) {
-	if meta.Lyrics != "" {
-		if err := q.UpsertLyrics(ctx, queries.UpsertLyricsParams{
-			ID:       uuid.NewString(),
-			TrackID:  trackID,
-			Source:   "embedded",
-			IsSynced: false,
-			Content:  meta.Lyrics,
-		}); err != nil {
-			slog.Error("scan: upsert lyrics", "track_id", trackID, "err", err)
-		}
+	_ = trackFileID
+	if meta.Lyrics == "" {
+		return
 	}
-
-	priority := int64(0)
-	if meta.HasMBID() {
-		priority = 10
-	}
-	if err := q.EnqueueTrackFile(ctx, queries.EnqueueTrackFileParams{
-		ID:          uuid.NewString(),
-		TrackFileID: trackFileID,
-		LibraryID:   libraryID,
-		Priority:    priority,
+	if err := q.UpsertLyrics(ctx, queries.UpsertLyricsParams{
+		ID:       uuid.NewString(),
+		TrackID:  trackID,
+		Source:   "embedded",
+		IsSynced: false,
+		Content:  meta.Lyrics,
 	}); err != nil {
-		slog.Error("scan: enqueue track file", "track_file_id", trackFileID, "err", err)
+		slog.Error("scan: upsert lyrics", "track_id", trackID, "err", err)
 	}
 }
 

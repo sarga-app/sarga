@@ -1,4 +1,4 @@
-package enricher
+package scanner
 
 import (
 	"context"
@@ -19,7 +19,7 @@ func NewMatcher(mb, discogs, acoustid providers.IdentificationProvider) *Matcher
 	return &Matcher{mb: mb, discogs: discogs, acoustid: acoustid}
 }
 
-func (m *Matcher) Match(ctx context.Context, meta catalog.Metadata) (*providers.MatchResult, error) {
+func (m *Matcher) Match(ctx context.Context, meta catalog.Metadata) *providers.MatchResult {
 	if meta.HasMBID() {
 		return &providers.MatchResult{
 			Confidence:    1.0,
@@ -27,29 +27,17 @@ func (m *Matcher) Match(ctx context.Context, meta catalog.Metadata) (*providers.
 			MBRecordingID: meta.MBRecordingID,
 			MBReleaseID:   meta.MBReleaseID,
 			MBArtistID:    meta.MBArtistID,
-		}, nil
-	}
-
-	if m.mb != nil {
-		r, err := m.mb.Match(ctx, meta)
-		if err == nil && r != nil && r.Confidence >= matchThreshold {
-			return r, nil
 		}
 	}
 
-	if m.discogs != nil {
-		r, err := m.discogs.Match(ctx, meta)
+	for _, p := range []providers.IdentificationProvider{m.mb, m.discogs, m.acoustid} {
+		if p == nil {
+			continue
+		}
+		r, err := p.Match(ctx, meta)
 		if err == nil && r != nil && r.Confidence >= matchThreshold {
-			return r, nil
+			return r
 		}
 	}
-
-	if m.acoustid != nil {
-		r, err := m.acoustid.Match(ctx, meta)
-		if err == nil && r != nil && r.Confidence >= matchThreshold {
-			return r, nil
-		}
-	}
-
-	return nil, nil //nolint:nilnil // nil = "no match found, not an error"
+	return nil
 }

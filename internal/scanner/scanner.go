@@ -18,22 +18,24 @@ import (
 var ErrScanAlreadyRunning = errors.New("scanner: scan already running for this library")
 
 type Scanner struct {
-	rq  *queries.Queries
-	wq  *queries.Queries
-	art *coverart.Manager
-	rec *Reconciler
-	db  *sql.DB
+	rq      *queries.Queries
+	wq      *queries.Queries
+	art     *coverart.Manager
+	rec     *Reconciler
+	db      *sql.DB
+	matcher *Matcher
 }
 
-func New(d *db.DB, art *coverart.Manager) *Scanner {
+func New(d *db.DB, art *coverart.Manager, matcher *Matcher) *Scanner {
 	rq := queries.New(d.Read())
 	wq := queries.New(d.Write())
 	return &Scanner{
-		rq:  rq,
-		wq:  wq,
-		art: art,
-		rec: NewReconciler(rq),
-		db:  d.Write(),
+		rq:      rq,
+		wq:      wq,
+		art:     art,
+		rec:     NewReconciler(rq),
+		db:      d.Write(),
+		matcher: matcher,
 	}
 }
 

@@ -17,7 +17,6 @@ import (
 	"github.com/sarga-app/sarga/internal/data"
 	"github.com/sarga-app/sarga/internal/db"
 	"github.com/sarga-app/sarga/internal/db/queries"
-	"github.com/sarga-app/sarga/internal/enricher"
 	"github.com/sarga-app/sarga/internal/scanner"
 	"github.com/sarga-app/sarga/internal/server/api"
 	"github.com/sarga-app/sarga/internal/server/public"
@@ -55,10 +54,8 @@ func Run(ctx context.Context, cfg *config.Config, dbInst *db.DB) error {
 	if err != nil {
 		return fmt.Errorf("init cover art manager: %w", err)
 	}
-	sc := scanner.New(dbInst, artMgr)
-
-	matcher := enricher.NewMatcher(nil, nil, nil)
-	enr := enricher.NewEnricher(dbInst, artMgr, matcher, nil, nil, nil, nil)
+	matcher := scanner.NewMatcher(nil, nil, nil)
+	sc := scanner.New(dbInst, artMgr, matcher)
 
 	scheduler := scanner.NewScheduler(sc)
 	watcher, werr := scanner.NewWatcher(sc)
@@ -88,11 +85,7 @@ func Run(ctx context.Context, cfg *config.Config, dbInst *db.DB) error {
 
 	go resumeInterruptedScans(ctx, dbInst, sc)
 
-	enrichCtx, enrichCancel := context.WithCancel(ctx)
-	defer enrichCancel()
-	go enr.Run(enrichCtx)
-
-	if err := scheduler.LoadFromDB(enrichCtx, dbInst); err != nil {
+	if err := scheduler.LoadFromDB(ctx, dbInst); err != nil {
 		slog.Error("failed to load scan schedules", "err", err)
 	}
 	scheduler.Start()
