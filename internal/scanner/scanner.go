@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -78,11 +79,16 @@ func (s *Scanner) Scan(ctx context.Context, libraryID string) error {
 		slog.Error("scan: failed", "library_id", libraryID, "run_id", run.ID, "err", scanErr)
 	} else {
 		t := pr.totals()
+		walk, pipeline, missing, gc := pr.timings()
 		slog.Info("scan: completed",
 			"library_id", libraryID, "run_id", run.ID,
 			"total", t.Total, "added", t.Added, "updated", t.Updated,
 			"unchanged", t.Unchanged, "moved", t.Moved,
 			"removed", t.Removed, "errors", t.Errored,
+			"walk", walk.Round(time.Millisecond),
+			"pipeline", pipeline.Round(time.Millisecond),
+			"missing", missing.Round(time.Millisecond),
+			"gc", gc.Round(time.Millisecond),
 		)
 	}
 	if err := s.wq.FinishScanRun(ctx, queries.FinishScanRunParams{
@@ -120,13 +126,17 @@ func (s *Scanner) runScan(
 		}
 	}
 
+	missingStart := time.Now()
 	if err := markMissingTrackFiles(ctx, s.db, libraryID, pr.snapshotFound()); err != nil {
 		slog.Error("scan: mark missing tracks", "library_id", libraryID, "err", err)
 	}
+	pr.setMissingDur(time.Since(missingStart))
 
+	gcStart := time.Now()
 	if _, err := pruneOrphans(ctx, s.db); err != nil {
 		slog.Error("scan: gc", "library_id", libraryID, "err", err)
 	}
+	pr.setGCDur(time.Since(gcStart))
 
 	pr.flushFinal(ctx, s.wq)
 

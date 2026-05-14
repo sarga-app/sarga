@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/sarga-app/sarga/internal/db/queries"
 )
@@ -17,9 +18,26 @@ type progress struct {
 
 	total, added, updated, unchanged, errored, removed, moved int64
 
+	walkDur, pipelineDur, missingDur, gcDur time.Duration
+
 	flushed struct {
 		total, added, updated, unchanged, errored, removed int64
 	}
+}
+
+func (p *progress) addWalk(d time.Duration)     { p.mu.Lock(); p.walkDur += d; p.mu.Unlock() }
+func (p *progress) addPipeline(d time.Duration) { p.mu.Lock(); p.pipelineDur += d; p.mu.Unlock() }
+func (p *progress) setMissingDur(d time.Duration) {
+	p.mu.Lock()
+	p.missingDur = d
+	p.mu.Unlock()
+}
+func (p *progress) setGCDur(d time.Duration) { p.mu.Lock(); p.gcDur = d; p.mu.Unlock() }
+
+func (p *progress) timings() (walk, pipeline, missing, gc time.Duration) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.walkDur, p.pipelineDur, p.missingDur, p.gcDur
 }
 
 func (p *progress) recordAdded()     { p.bump(&p.added, &p.total) }

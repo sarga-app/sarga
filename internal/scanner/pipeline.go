@@ -43,8 +43,10 @@ func (s *Scanner) processPath(
 	if err != nil {
 		return err
 	}
+	walkDur := time.Since(walkStart)
+	pr.addWalk(walkDur)
 	slog.Debug("scan: walk",
-		"elapsed", time.Since(walkStart).Round(time.Millisecond),
+		"elapsed", walkDur.Round(time.Millisecond),
 		"folders", len(folders), "removed", len(removed))
 
 	for _, f := range folders {
@@ -106,10 +108,12 @@ func (s *Scanner) processPath(
 		persisted++
 	}
 
+	pipelineDur := time.Since(pipeStart)
+	pr.addPipeline(pipelineDur)
 	slog.Debug("scan: pipeline",
 		"folders_with_work", persisted,
 		"prepare_wall", persistStart.Sub(pipeStart).Round(time.Millisecond),
-		"total_wall", time.Since(pipeStart).Round(time.Millisecond),
+		"total_wall", pipelineDur.Round(time.Millisecond),
 	)
 	return nil
 }
