@@ -1,4 +1,4 @@
-package scanner
+package library
 
 import (
 	"context"
@@ -10,19 +10,20 @@ import (
 
 	"github.com/sarga-app/sarga/internal/db"
 	"github.com/sarga-app/sarga/internal/db/queries"
+	"github.com/sarga-app/sarga/internal/scanner"
 )
 
 const debounceWindow = 2 * time.Second
 
 type Watcher struct {
-	scanner *Scanner
+	scanner *scanner.Scanner
 	watcher *fsnotify.Watcher
 
 	mu      sync.Mutex
 	pending map[string]time.Time // libraryID → time of last event
 }
 
-func NewWatcher(sc *Scanner) (*Watcher, error) {
+func NewWatcher(sc *scanner.Scanner) (*Watcher, error) {
 	fw, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err

@@ -17,6 +17,7 @@ import (
 	"github.com/sarga-app/sarga/internal/data"
 	"github.com/sarga-app/sarga/internal/db"
 	"github.com/sarga-app/sarga/internal/db/queries"
+	"github.com/sarga-app/sarga/internal/library"
 	"github.com/sarga-app/sarga/internal/scanner"
 	"github.com/sarga-app/sarga/internal/server/api"
 	"github.com/sarga-app/sarga/internal/server/public"
@@ -57,8 +58,8 @@ func Run(ctx context.Context, cfg *config.Config, dbInst *db.DB) error {
 	matcher := scanner.NewMatcher(nil, nil, nil)
 	sc := scanner.New(dbInst, artMgr, matcher)
 
-	scheduler := scanner.NewScheduler(sc)
-	watcher, werr := scanner.NewWatcher(sc)
+	scheduler := library.NewScheduler(sc)
+	watcher, werr := library.NewWatcher(sc)
 	if werr != nil {
 		slog.Warn("fsnotify unavailable; file watch disabled", "err", werr)
 		watcher = nil
@@ -176,7 +177,7 @@ func resolveMasterKey(configured string, dirs *data.Dirs) (*crypto.MasterKey, er
 	return crypto.LoadOrGenerateMasterKey(path)
 }
 
-func startWatcher(ctx context.Context, w *scanner.Watcher, dbInst *db.DB) {
+func startWatcher(ctx context.Context, w *library.Watcher, dbInst *db.DB) {
 	pathMap, err := w.LoadPathsFromDB(ctx, dbInst)
 	if err != nil {
 		slog.Error("failed to build watcher path map", "err", err)

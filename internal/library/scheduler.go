@@ -1,4 +1,4 @@
-package scanner
+package library
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/sarga-app/sarga/internal/db"
 	"github.com/sarga-app/sarga/internal/db/queries"
+	"github.com/sarga-app/sarga/internal/scanner"
 )
 
 const jitterRange = 30 * time.Minute
@@ -21,11 +22,11 @@ type LibrarySchedule struct {
 }
 
 type Scheduler struct {
-	scanner *Scanner
+	scanner *scanner.Scanner
 	cron    *cron.Cron
 }
 
-func NewScheduler(sc *Scanner) *Scheduler {
+func NewScheduler(sc *scanner.Scanner) *Scheduler {
 	return &Scheduler{
 		scanner: sc,
 		cron:    cron.New(cron.WithSeconds()),
