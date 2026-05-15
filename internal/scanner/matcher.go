@@ -3,8 +3,8 @@ package scanner
 import (
 	"context"
 
-	"github.com/sarga-app/sarga/internal/catalog"
 	"github.com/sarga-app/sarga/internal/providers"
+	"github.com/sarga-app/sarga/internal/tags"
 )
 
 const matchThreshold = 0.85
@@ -19,7 +19,7 @@ func NewMatcher(mb, discogs, acoustid providers.IdentificationProvider) *Matcher
 	return &Matcher{mb: mb, discogs: discogs, acoustid: acoustid}
 }
 
-func (m *Matcher) Match(ctx context.Context, meta catalog.Metadata) *providers.MatchResult {
+func (m *Matcher) Match(ctx context.Context, meta tags.Metadata) *providers.MatchResult {
 	if meta.HasMBID() {
 		return &providers.MatchResult{
 			Confidence:    1.0,

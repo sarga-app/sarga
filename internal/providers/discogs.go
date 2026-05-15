@@ -12,7 +12,7 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"github.com/sarga-app/sarga/internal/catalog"
+	"github.com/sarga-app/sarga/internal/tags"
 )
 
 const discogsBase = "https://api.discogs.com"
@@ -48,7 +48,7 @@ func (c *DiscogsClient) Name() string { return "discogs" }
 
 func (c *DiscogsClient) available() bool { return c.token != "" }
 
-func (c *DiscogsClient) Match(ctx context.Context, m catalog.Metadata) (*MatchResult, error) {
+func (c *DiscogsClient) Match(ctx context.Context, m tags.Metadata) (*MatchResult, error) {
 	if !c.available() || m.Title == "" {
 		return nil, nil
 	}

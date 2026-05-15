@@ -14,7 +14,7 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"github.com/sarga-app/sarga/internal/catalog"
+	"github.com/sarga-app/sarga/internal/tags"
 )
 
 const acoustidLookupURL = "https://api.acoustid.org/v2/lookup"
@@ -41,7 +41,7 @@ func (c *AcoustIDClient) Name() string { return "acoustid" }
 // the enricher passes the file path separately via ctx value) and looks it
 // up on AcoustID.  Returns nil without error when fpcalc is unavailable or
 // produces no results above the confidence threshold.
-func (c *AcoustIDClient) Match(ctx context.Context, _ catalog.Metadata) (*MatchResult, error) {
+func (c *AcoustIDClient) Match(ctx context.Context, _ tags.Metadata) (*MatchResult, error) {
 	if c.apiKey == "" {
 		return nil, nil
 	}

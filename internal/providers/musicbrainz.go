@@ -14,7 +14,7 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"github.com/sarga-app/sarga/internal/catalog"
+	"github.com/sarga-app/sarga/internal/tags"
 )
 
 const (
@@ -44,7 +44,7 @@ func NewMusicBrainzClient(appVersion string) *MusicBrainzClient {
 
 func (c *MusicBrainzClient) Name() string { return "musicbrainz" }
 
-func (c *MusicBrainzClient) Match(ctx context.Context, m catalog.Metadata) (*MatchResult, error) {
+func (c *MusicBrainzClient) Match(ctx context.Context, m tags.Metadata) (*MatchResult, error) {
 	if m.MBRecordingID != "" {
 		rec, err := c.lookupRecording(ctx, m.MBRecordingID)
 		if err != nil || rec == nil {
@@ -313,7 +313,7 @@ type mbReleaseDetail struct {
 	} `json:"label-info"`
 }
 
-func mbRecordingScore(m catalog.Metadata, rec mbRecording) float64 {
+func mbRecordingScore(m tags.Metadata, rec mbRecording) float64 {
 	return mbFuzzyScore(m, rec.Title, rec.primaryArtistName(), rec.bestReleaseTitle(), 0, 0)
 }
 

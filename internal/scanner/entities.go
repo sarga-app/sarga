@@ -9,11 +9,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/sarga-app/sarga/internal/catalog"
 	"github.com/sarga-app/sarga/internal/db/queries"
+	"github.com/sarga-app/sarga/internal/tags"
 )
 
-func getOrCreateArtist(ctx context.Context, q *queries.Queries, meta catalog.Metadata) (string, error) {
+func getOrCreateArtist(ctx context.Context, q *queries.Queries, meta tags.Metadata) (string, error) {
 	name := meta.AlbumArtist
 	if name == "" {
 		name = meta.PrimaryArtist()
@@ -59,7 +59,7 @@ func getOrCreateArtist(ctx context.Context, q *queries.Queries, meta catalog.Met
 	return inserted.ID, nil
 }
 
-func getOrCreateReleaseGroup(ctx context.Context, q *queries.Queries, meta catalog.Metadata) (string, error) {
+func getOrCreateReleaseGroup(ctx context.Context, q *queries.Queries, meta tags.Metadata) (string, error) {
 	title := meta.Album
 	if title == "" {
 		title = "Unknown Album"
@@ -101,7 +101,7 @@ func getOrCreateReleaseGroup(ctx context.Context, q *queries.Queries, meta catal
 	return inserted.ID, nil
 }
 
-func getOrCreateRelease(ctx context.Context, q *queries.Queries, meta catalog.Metadata, rgID string) (string, error) {
+func getOrCreateRelease(ctx context.Context, q *queries.Queries, meta tags.Metadata, rgID string) (string, error) {
 	title := meta.Album
 	if title == "" {
 		title = "Unknown Album"
@@ -152,7 +152,7 @@ func getOrCreateRelease(ctx context.Context, q *queries.Queries, meta catalog.Me
 	return inserted.ID, nil
 }
 
-func lookupTrackByMBID(ctx context.Context, q *queries.Queries, meta catalog.Metadata) (id string, found bool, err error) {
+func lookupTrackByMBID(ctx context.Context, q *queries.Queries, meta tags.Metadata) (id string, found bool, err error) {
 	if meta.MBRecordingID == "" {
 		return "", false, nil
 	}
@@ -175,7 +175,7 @@ func lookupTrackByMBID(ctx context.Context, q *queries.Queries, meta catalog.Met
 	return row.ID, true, nil
 }
 
-func getOrCreateTrack(ctx context.Context, q *queries.Queries, meta catalog.Metadata) (string, error) {
+func getOrCreateTrack(ctx context.Context, q *queries.Queries, meta tags.Metadata) (string, error) {
 	title := meta.Title
 	if title == "" {
 		title = "Unknown Track"

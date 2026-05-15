@@ -5,7 +5,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/sarga-app/sarga/internal/catalog"
+	"github.com/sarga-app/sarga/internal/tags"
 )
 
 type MatchResult struct {
@@ -59,7 +59,7 @@ type LyricsResult struct {
 
 type IdentificationProvider interface {
 	Name() string
-	Match(ctx context.Context, m catalog.Metadata) (*MatchResult, error)
+	Match(ctx context.Context, m tags.Metadata) (*MatchResult, error)
 }
 
 type ArtistMetaProvider interface {
@@ -97,7 +97,7 @@ func strSimilarity(a, b string) float64 {
 	return 1.0 - float64(dist)/float64(maxLen)
 }
 
-func mbFuzzyScore(meta catalog.Metadata, title, artist, album string, year int, durationMs int64) float64 {
+func mbFuzzyScore(meta tags.Metadata, title, artist, album string, year int, durationMs int64) float64 {
 	metaDurationMs := meta.DurationMs
 	titleScore := strSimilarity(meta.Title, title) * 3.0
 	artistScore := strSimilarity(meta.PrimaryArtist(), artist) * 3.0

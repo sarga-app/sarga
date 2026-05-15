@@ -1,4 +1,4 @@
-package catalog
+package tags
 
 import (
 	"path/filepath"
@@ -54,7 +54,7 @@ type Metadata struct {
 	Codec  string
 }
 
-func Extract(path string) (Metadata, error) {
+func Read(path string) (Metadata, error) {
 	f, err := taglib.OpenReadOnly(path, taglib.WithReadStyle(taglib.ReadStyleAverage))
 	if err != nil {
 		return Metadata{Format: formatFromExt(path)}, nil

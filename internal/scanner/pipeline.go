@@ -13,9 +13,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/sarga-app/sarga/internal/catalog"
 	"github.com/sarga-app/sarga/internal/db/queries"
 	"github.com/sarga-app/sarga/internal/providers"
+	"github.com/sarga-app/sarga/internal/tags"
 )
 
 type preparedFolder struct {
@@ -28,7 +28,7 @@ type preparedFolder struct {
 type preparedFile struct {
 	ev   FileEvent
 	hash []byte
-	meta catalog.Metadata
+	meta tags.Metadata
 }
 
 func (s *Scanner) processPath(
@@ -145,7 +145,7 @@ func (s *Scanner) prepareFolder(f FolderEvent, pr *progress) *preparedFolder {
 			pr.recordErrored()
 			continue
 		}
-		meta, err := catalog.Extract(ev.AbsPath)
+		meta, err := tags.Read(ev.AbsPath)
 		if err != nil {
 			slog.Warn("scan: tag extract failed", "path", ev.AbsPath, "err", err)
 			pr.recordErrored()
@@ -479,7 +479,7 @@ func attachFileExtras(
 	ctx context.Context,
 	q *queries.Queries,
 	trackID, trackFileID string,
-	meta catalog.Metadata,
+	meta tags.Metadata,
 ) {
 	_ = trackFileID
 	if meta.Lyrics == "" {
