@@ -27,6 +27,6 @@ func printBanner(w io.Writer, version, commit string, dirty bool) {
 	if dirty {
 		dirtyMark = "-dirty"
 	}
-	fmt.Fprint(w, bannerArt)
-	fmt.Fprintf(w, "  %s  (%s%s)\n\n", version, commit, dirtyMark)
+	_, _ = fmt.Fprint(w, bannerArt)
+	_, _ = fmt.Fprintf(w, "  %s  (%s%s)\n\n", version, commit, dirtyMark)
 }
