@@ -460,29 +460,39 @@ func getOrCreateRelease(ctx context.Context, q *queries.Queries, meta tags.Metad
 	return inserted.ID, nil
 }
 
+func findTrackByMBID(ctx context.Context, q *queries.Queries, meta tags.Metadata) (string, bool, error) {
+	if meta.MBRecordingID == "" {
+		return "", false, nil
+	}
+	mbid := meta.MBRecordingID
+	row, err := q.GetTrackByMBID(ctx, &mbid)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	if meta.DurationMs > 0 {
+		if uerr := q.UpdateTrackDurationIfNull(ctx, queries.UpdateTrackDurationIfNullParams{
+			DurationMs: &meta.DurationMs,
+			ID:         row.ID,
+		}); uerr != nil {
+			slog.Error("scan: update track duration", "track_id", row.ID, "err", uerr)
+		}
+	}
+	return row.ID, true, nil
+}
+
 func getOrCreateTrack(ctx context.Context, q *queries.Queries, meta tags.Metadata) (string, error) {
 	title := meta.Title
 	if title == "" {
 		title = "Unknown Track"
 	}
 
-	if meta.MBRecordingID != "" {
-		mbid := meta.MBRecordingID
-		row, err := q.GetTrackByMBID(ctx, &mbid)
-		if err == nil {
-			if meta.DurationMs > 0 {
-				if uerr := q.UpdateTrackDurationIfNull(ctx, queries.UpdateTrackDurationIfNullParams{
-					DurationMs: &meta.DurationMs,
-					ID:         row.ID,
-				}); uerr != nil {
-					slog.Error("scan: update track duration", "track_id", row.ID, "err", uerr)
-				}
-			}
-			return row.ID, nil
-		}
-		if !errors.Is(err, sql.ErrNoRows) {
-			return "", err
-		}
+	if id, found, err := findTrackByMBID(ctx, q, meta); err != nil {
+		return "", err
+	} else if found {
+		return id, nil
 	}
 
 	var mbidPtr *string
