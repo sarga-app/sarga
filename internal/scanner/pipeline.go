@@ -277,8 +277,7 @@ func (s *Scanner) persistFile(
 		Position:   int64(file.meta.TrackNum),
 	})
 
-	match := s.matcher.Match(ctx, file.meta)
-	trackFileID, err := s.writeTrackFile(ctx, q, libraryID, trackID, file, match, pr)
+	trackFileID, err := s.writeTrackFile(ctx, q, libraryID, trackID, file, localMatch(file.meta), pr)
 	if err != nil {
 		return err
 	}
@@ -493,6 +492,19 @@ func attachFileExtras(
 		Content:  meta.Lyrics,
 	}); err != nil {
 		slog.Error("scan: upsert lyrics", "track_id", trackID, "err", err)
+	}
+}
+
+func localMatch(meta tags.Metadata) *providers.MatchResult {
+	if !meta.HasMBID() {
+		return nil
+	}
+	return &providers.MatchResult{
+		Confidence:    1.0,
+		Source:        "mbid_tag",
+		MBRecordingID: meta.MBRecordingID,
+		MBReleaseID:   meta.MBReleaseID,
+		MBArtistID:    meta.MBArtistID,
 	}
 }
 

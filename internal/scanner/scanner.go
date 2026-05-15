@@ -30,12 +30,11 @@ type activeRun struct {
 }
 
 type Scanner struct {
-	rq      *queries.Queries
-	wq      *queries.Queries
-	art     *coverart.Manager
-	rec     *Reconciler
-	db      *sql.DB
-	matcher *Matcher
+	rq  *queries.Queries
+	wq  *queries.Queries
+	art *coverart.Manager
+	rec *Reconciler
+	db  *sql.DB
 
 	dirtyMu sync.Mutex
 	dirty   map[string]bool
@@ -44,18 +43,17 @@ type Scanner struct {
 	runs   map[string]*activeRun
 }
 
-func New(d *db.DB, art *coverart.Manager, matcher *Matcher) *Scanner {
+func New(d *db.DB, art *coverart.Manager) *Scanner {
 	rq := queries.New(d.Read())
 	wq := queries.New(d.Write())
 	return &Scanner{
-		rq:      rq,
-		wq:      wq,
-		art:     art,
-		rec:     NewReconciler(rq),
-		db:      d.Write(),
-		matcher: matcher,
-		dirty:   make(map[string]bool),
-		runs:    make(map[string]*activeRun),
+		rq:    rq,
+		wq:    wq,
+		art:   art,
+		rec:   NewReconciler(rq),
+		db:    d.Write(),
+		dirty: make(map[string]bool),
+		runs:  make(map[string]*activeRun),
 	}
 }
 

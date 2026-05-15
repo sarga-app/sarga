@@ -55,8 +55,7 @@ func Run(ctx context.Context, cfg *config.Config, dbInst *db.DB) error {
 	if err != nil {
 		return fmt.Errorf("init cover art manager: %w", err)
 	}
-	matcher := scanner.NewMatcher(nil, nil, nil)
-	sc := scanner.New(dbInst, artMgr, matcher)
+	sc := scanner.New(dbInst, artMgr)
 
 	scheduler := library.NewScheduler(sc)
 	watcher, werr := library.NewWatcher(sc)
