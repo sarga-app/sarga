@@ -157,18 +157,3 @@ func (p *progress) totals() progressTotals {
 		Removed: p.removed, Errored: p.errored,
 	}
 }
-
-func optFloat(f float64) *float64 {
-	if f == 0 {
-		return nil
-	}
-	return &f
-}
-
-func optInt64(n int) *int64 {
-	if n <= 0 {
-		return nil
-	}
-	v := int64(n)
-	return &v
-}

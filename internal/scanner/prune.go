@@ -3,18 +3,20 @@ package scanner
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 )
 
-type gcCounts struct {
+type pruneCounts struct {
 	releases      int64
 	releaseGroups int64
 	artists       int64
 }
 
-func pruneOrphans(ctx context.Context, db *sql.DB) (gcCounts, error) {
-	var c gcCounts
+func pruneOrphans(ctx context.Context, db *sql.DB) (pruneCounts, error) {
+	var c pruneCounts
 	start := time.Now()
 
 	tx, err := db.BeginTx(ctx, nil)
@@ -52,10 +54,33 @@ func pruneOrphans(ctx context.Context, db *sql.DB) (gcCounts, error) {
 		return c, err
 	}
 
-	slog.Debug("scan: gc",
+	slog.Debug("scan: prune",
 		"releases", c.releases,
 		"release_groups", c.releaseGroups,
 		"artists", c.artists,
 		"elapsed", time.Since(start).Round(time.Millisecond))
 	return c, nil
+}
+
+func markMissingTrackFiles(ctx context.Context, sqlDB *sql.DB, libraryID string, foundPaths []string) error {
+	if len(foundPaths) == 0 {
+		_, err := sqlDB.ExecContext(ctx,
+			`UPDATE track_files SET missing_since = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+             WHERE library_id = ? AND missing_since IS NULL`, libraryID)
+		return err
+	}
+	placeholders := strings.Repeat("?,", len(foundPaths))
+	placeholders = placeholders[:len(placeholders)-1]
+	query := fmt.Sprintf( //nolint:gosec // placeholders is "?,?,?" — no user data in the format verb
+		`UPDATE track_files SET missing_since = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+         WHERE library_id = ? AND relative_path NOT IN (%s) AND missing_since IS NULL`,
+		placeholders,
+	)
+	args := make([]any, 0, len(foundPaths)+1)
+	args = append(args, libraryID)
+	for _, p := range foundPaths {
+		args = append(args, p)
+	}
+	_, err := sqlDB.ExecContext(ctx, query, args...)
+	return err
 }

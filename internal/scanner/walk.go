@@ -2,11 +2,14 @@ package scanner
 
 import (
 	"context"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/zeebo/xxh3"
 
 	"github.com/sarga-app/sarga/internal/db/queries"
 )
@@ -172,4 +175,18 @@ func (r *Reconciler) ReconcileFolders(
 	}
 
 	return folders, removed, nil
+}
+
+func HashFile(path string) ([]byte, error) {
+	f, err := os.Open(path) //nolint:gosec // path comes from scanner's validated walk
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = f.Close() }()
+	h := xxh3.New128()
+	if _, err := io.Copy(h, f); err != nil {
+		return nil, err
+	}
+	arr := h.Sum128().Bytes()
+	return arr[:], nil
 }
