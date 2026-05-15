@@ -133,6 +133,32 @@ func (s *Scanner) Scan(ctx context.Context, libraryID string) error {
 	return s.doScan(ctx, libraryID, run.ID, "", paths, settings)
 }
 
+func (s *Scanner) ResumeAll(ctx context.Context, d *db.DB) {
+	rows, err := d.Read().QueryContext(ctx, `SELECT DISTINCT library_id FROM scan_runs WHERE status = 'running'`)
+	if err != nil {
+		slog.Error("scan: resume query failed", "err", err)
+		return
+	}
+	defer rows.Close() //nolint:errcheck
+	var libs []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err == nil {
+			libs = append(libs, id)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		slog.Error("scan: resume iterate failed", "err", err)
+	}
+	for _, libID := range libs {
+		go func(id string) {
+			if err := s.Resume(ctx, id); err != nil {
+				slog.Error("scan: resume failed", "library_id", id, "err", err)
+			}
+		}(libID)
+	}
+}
+
 func (s *Scanner) Resume(ctx context.Context, libraryID string) error {
 	settings, paths, err := s.loadLibrary(ctx, libraryID)
 	if err != nil || len(paths) == 0 {
@@ -184,7 +210,8 @@ func (s *Scanner) doScan(
 			slog.Error("scan: finish run after unreachable path", "err", ferr)
 		}
 		slog.Error("scan: aborted, library path unreachable",
-			"library_id", libraryID, "run_id", runID, "path", p.Path, "err", statErr)
+			"library_id", libraryID, "run_id", runID, "path", p.Path, "err", statErr,
+			"action", "ensure the NAS/mount is online and accessible to the sarga process")
 		return scanErr
 	}
 
@@ -216,7 +243,7 @@ func (s *Scanner) doScan(
 		slog.Error("scan: failed", "library_id", libraryID, "run_id", runID, "err", scanErr)
 	default:
 		t := pr.totals()
-		walk, pipeline, missing, gc := pr.timings()
+		walk, pipeline, missing, prune := pr.timings()
 		slog.Info("scan: completed",
 			"library_id", libraryID, "run_id", runID,
 			"total", t.Total, "added", t.Added, "updated", t.Updated,
@@ -225,7 +252,7 @@ func (s *Scanner) doScan(
 			"walk", walk.Round(time.Millisecond),
 			"pipeline", pipeline.Round(time.Millisecond),
 			"missing", missing.Round(time.Millisecond),
-			"gc", gc.Round(time.Millisecond),
+			"prune", prune.Round(time.Millisecond),
 		)
 	}
 	if err := s.wq.FinishScanRun(ctx, queries.FinishScanRunParams{
@@ -237,7 +264,7 @@ func (s *Scanner) doScan(
 	}
 
 	if s.takeDirty(libraryID) {
-		slog.Info("scan: respawning for queued changes", "library_id", libraryID)
+		slog.Debug("scan: respawning for queued changes", "library_id", libraryID)
 		go func() { //nolint:gosec,contextcheck // respawn must outlive caller's request-scoped ctx
 			respawnCtx := context.Background()
 			if rerr := s.Scan(respawnCtx, libraryID); rerr != nil && !errors.Is(rerr, ErrScanAlreadyRunning) {
@@ -273,16 +300,28 @@ func (s *Scanner) runScan(
 	}
 
 	missingStart := time.Now()
-	if err := markMissingTrackFiles(ctx, s.db, libraryID, pr.snapshotFound()); err != nil {
-		slog.Error("scan: mark missing tracks", "library_id", libraryID, "err", err)
+	missingN, mErr := markMissingTrackFiles(ctx, s.db, libraryID, pr.snapshotFound())
+	missingElapsed := time.Since(missingStart)
+	pr.setMissingDur(missingElapsed)
+	switch {
+	case mErr != nil:
+		slog.Error("scan: mark missing tracks", "library_id", libraryID, "err", mErr)
+	case missingN > 0:
+		slog.Info("scan: marked missing",
+			"library_id", libraryID,
+			"count", missingN,
+			"elapsed", missingElapsed.Round(time.Millisecond))
+	default:
+		slog.Debug("scan: marked missing none",
+			"library_id", libraryID,
+			"elapsed", missingElapsed.Round(time.Millisecond))
 	}
-	pr.setMissingDur(time.Since(missingStart))
 
-	gcStart := time.Now()
+	pruneStart := time.Now()
 	if _, err := pruneOrphans(ctx, s.db); err != nil {
-		slog.Error("scan: gc", "library_id", libraryID, "err", err)
+		slog.Error("scan: prune orphans", "library_id", libraryID, "err", err)
 	}
-	pr.setGCDur(time.Since(gcStart))
+	pr.setPruneDur(time.Since(pruneStart))
 
 	pr.flushFinal(ctx, s.wq)
 

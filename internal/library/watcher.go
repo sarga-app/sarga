@@ -51,8 +51,39 @@ func (w *Watcher) LoadPathsFromDB(ctx context.Context, d *db.DB) (map[string]str
 	return m, nil
 }
 
+func (w *Watcher) Start(ctx context.Context, d *db.DB) {
+	pathMap, err := w.LoadPathsFromDB(ctx, d)
+	if err != nil {
+		slog.Error("watcher: build path map failed", "err", err)
+		return
+	}
+	names := libraryNames(ctx, d)
+	for root, libID := range pathMap {
+		if err := w.Watch(root); err != nil {
+			slog.Error("watcher: failed to watch path", "path", root, "err", err, "library_id", libID)
+			continue
+		}
+		slog.Info("watcher: monitoring",
+			"library_id", libID,
+			"name", names[libID],
+			"path", root)
+	}
+	go w.Run(ctx, pathMap)
+}
+
+func libraryNames(ctx context.Context, d *db.DB) map[string]string {
+	libs, err := queries.New(d.Read()).ListLibraries(ctx)
+	if err != nil {
+		return map[string]string{}
+	}
+	m := make(map[string]string, len(libs))
+	for _, l := range libs {
+		m[l.ID] = l.Name
+	}
+	return m
+}
+
 func (w *Watcher) Run(ctx context.Context, pathToLibrary map[string]string) {
-	slog.Info("watcher: started", "paths", len(pathToLibrary))
 	ticker := time.NewTicker(debounceWindow / 2)
 	defer ticker.Stop()
 	defer func() {

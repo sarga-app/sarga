@@ -18,7 +18,7 @@ type progress struct {
 
 	total, added, updated, unchanged, errored, removed, moved int64
 
-	walkDur, pipelineDur, missingDur, gcDur time.Duration
+	walkDur, pipelineDur, missingDur, pruneDur time.Duration
 
 	currentFolder string
 
@@ -68,12 +68,12 @@ func (p *progress) setMissingDur(d time.Duration) {
 	p.missingDur = d
 	p.mu.Unlock()
 }
-func (p *progress) setGCDur(d time.Duration) { p.mu.Lock(); p.gcDur = d; p.mu.Unlock() }
+func (p *progress) setPruneDur(d time.Duration) { p.mu.Lock(); p.pruneDur = d; p.mu.Unlock() }
 
-func (p *progress) timings() (walk, pipeline, missing, gc time.Duration) {
+func (p *progress) timings() (walk, pipeline, missing, prune time.Duration) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return p.walkDur, p.pipelineDur, p.missingDur, p.gcDur
+	return p.walkDur, p.pipelineDur, p.missingDur, p.pruneDur
 }
 
 func (p *progress) recordAdded()     { p.bump(&p.added, &p.total) }

@@ -299,7 +299,7 @@ func tryRepathByHash(
 	}); rerr != nil {
 		return "", false, rerr
 	}
-	slog.Info("scan: file moved",
+	slog.Debug("scan: file moved",
 		"library_id", libraryID,
 		"from", row.RelativePath,
 		"to", file.ev.AbsPath,

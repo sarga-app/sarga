@@ -3,6 +3,7 @@ package auth
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -106,4 +107,8 @@ func (c *AccessClaims) UserID() (uuid.UUID, error) {
 		return uuid.Nil, fmt.Errorf("parse subject %q: %w", c.Subject, err)
 	}
 	return id, nil
+}
+
+func LogConfig() {
+	slog.Info("auth: configured", "access_ttl", AccessTTL, "refresh_ttl", RefreshTTL)
 }

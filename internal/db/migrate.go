@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/database"
@@ -40,21 +41,30 @@ func MigrateUp(ctx context.Context, path string) error {
 	if err != nil {
 		return err
 	}
+	start := time.Now()
 	results, err := p.Up(ctx)
 	if err != nil {
 		return fmt.Errorf("migrate up: %w", err)
 	}
+	current, cerr := p.GetDBVersion(ctx)
 	if len(results) == 0 {
-		slog.Info("migrations: schema already up to date")
+		if cerr == nil {
+			slog.Info("migrations: up-to-date", "version", current)
+		} else {
+			slog.Info("migrations: up-to-date")
+		}
 	} else {
 		slog.Info("migrations: applied",
 			"count", len(results),
 			"from", results[0].Source.Version,
 			"to", results[len(results)-1].Source.Version,
+			"elapsed", time.Since(start).Round(time.Millisecond),
 		)
 	}
 	if _, err := db.ExecContext(ctx, "ANALYZE"); err != nil {
-		slog.Warn("migrations: ANALYZE failed", "err", err)
+		slog.Warn("migrations: ANALYZE failed",
+			"err", err,
+			"action", "next scan will be slower; investigate sqlite logs")
 	}
 	return nil
 }
@@ -110,6 +120,6 @@ func MigrateStatus(ctx context.Context, path string) ([]MigrationStatus, error) 
 
 func closeDB(db *sql.DB) {
 	if err := db.Close(); err != nil {
-		slog.Warn("close migration db", "err", err)
+		slog.Warn("migrations: close failed", "err", err)
 	}
 }

@@ -54,20 +54,29 @@ func pruneOrphans(ctx context.Context, db *sql.DB) (pruneCounts, error) {
 		return c, err
 	}
 
-	slog.Debug("scan: prune",
-		"releases", c.releases,
-		"release_groups", c.releaseGroups,
-		"artists", c.artists,
-		"elapsed", time.Since(start).Round(time.Millisecond))
+	elapsed := time.Since(start).Round(time.Millisecond)
+	if c.releases+c.releaseGroups+c.artists == 0 {
+		slog.Debug("scan: prune no orphans", "elapsed", elapsed)
+	} else {
+		slog.Info("scan: pruned orphans",
+			"releases", c.releases,
+			"release_groups", c.releaseGroups,
+			"artists", c.artists,
+			"elapsed", elapsed)
+	}
 	return c, nil
 }
 
-func markMissingTrackFiles(ctx context.Context, sqlDB *sql.DB, libraryID string, foundPaths []string) error {
+func markMissingTrackFiles(ctx context.Context, sqlDB *sql.DB, libraryID string, foundPaths []string) (int64, error) {
 	if len(foundPaths) == 0 {
-		_, err := sqlDB.ExecContext(ctx,
+		res, err := sqlDB.ExecContext(ctx,
 			`UPDATE track_files SET missing_since = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
              WHERE library_id = ? AND missing_since IS NULL`, libraryID)
-		return err
+		if err != nil {
+			return 0, err
+		}
+		n, _ := res.RowsAffected() //nolint:errcheck // RowsAffected never errors for sqlite
+		return n, nil
 	}
 	placeholders := strings.Repeat("?,", len(foundPaths))
 	placeholders = placeholders[:len(placeholders)-1]
@@ -81,6 +90,10 @@ func markMissingTrackFiles(ctx context.Context, sqlDB *sql.DB, libraryID string,
 	for _, p := range foundPaths {
 		args = append(args, p)
 	}
-	_, err := sqlDB.ExecContext(ctx, query, args...)
-	return err
+	res, err := sqlDB.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	n, _ := res.RowsAffected() //nolint:errcheck
+	return n, nil
 }

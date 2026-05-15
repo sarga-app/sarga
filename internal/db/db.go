@@ -69,7 +69,15 @@ func New(path string) (*DB, error) {
 		return nil, fmt.Errorf("ping read pool: %w", err)
 	}
 
-	slog.Info("db: pools ready", "path", path, "read_conns", n, "write_conns", 1)
+	slog.Info("db: pools ready",
+		"path", path,
+		"read_conns", n,
+		"write_conns", 1,
+		"journal", "wal",
+		"busy_timeout_ms", busyTimeout,
+		"foreign_keys", "on",
+		"synchronous", "normal",
+	)
 	return &DB{
 		write: write,
 		read:  read,

@@ -93,7 +93,13 @@ func ensureDir(dir string, mode os.FileMode, warnLoosePerms bool) error {
 	}
 	if warnLoosePerms {
 		if perm := info.Mode().Perm(); perm&0o077 != 0 {
-			slog.Warn("data dir is world/group readable", "dir", dir, "perm", perm)
+			if err := os.Chmod(dir, mode); err != nil {
+				slog.Warn("data: tighten permissions failed",
+					"dir", dir, "perm", perm, "err", err,
+					"action", "chmod 0700 the data dir manually; sarga refuses to run with loose perms")
+			} else {
+				slog.Info("data: tightened permissions", "dir", dir, "from", perm, "to", mode)
+			}
 		}
 	}
 	return nil

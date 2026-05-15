@@ -33,16 +33,24 @@ const (
 	maxHeaderBytes    = 1 << 20
 )
 
-func Run(ctx context.Context, cfg *config.Config, dbInst *db.DB) error {
+func Run(ctx context.Context, cfg *config.Config, dbInst *db.DB, startedAt time.Time) error {
 	dirs, err := data.New(cfg.Data.Dir)
 	if err != nil {
 		return fmt.Errorf("init data dir: %w", err)
 	}
-	secret, err := resolveJWTSecret(cfg.Secrets.JWT, dirs)
+	jwtPath, err := dirs.SecretFile(crypto.JWTSecretFileName)
+	if err != nil {
+		return err
+	}
+	secret, err := crypto.ResolveJWTSecret(cfg.Secrets.JWT, jwtPath)
 	if err != nil {
 		return fmt.Errorf("resolve jwt secret: %w", err)
 	}
-	masterKey, err := resolveMasterKey(cfg.Secrets.Master, dirs)
+	masterPath, err := dirs.SecretFile("master.key")
+	if err != nil {
+		return err
+	}
+	masterKey, err := crypto.ResolveMasterKey(cfg.Secrets.Master, masterPath)
 	if err != nil {
 		return fmt.Errorf("resolve master key: %w", err)
 	}
@@ -60,13 +68,19 @@ func Run(ctx context.Context, cfg *config.Config, dbInst *db.DB) error {
 	scheduler := library.NewScheduler(sc)
 	watcher, werr := library.NewWatcher(sc)
 	if werr != nil {
-		slog.Warn("fsnotify unavailable; file watch disabled", "err", werr)
+		slog.Warn("watcher: disabled",
+			"reason", "fsnotify unavailable",
+			"err", werr,
+			"action", "rebuild on a platform with inotify/kqueue support")
 		watcher = nil
 	}
 
 	initialSettings, err := queries.New(dbInst.Read()).GetServerSettings(ctx)
 	if err != nil {
-		slog.Warn("art: failed to load initial cache limit, defaulting to 500 MB", "err", err)
+		slog.Warn("art: cache limit fallback",
+			"err", err,
+			"default_mb", 500,
+			"action", "set art.thumb_cache_mb in server_settings to override")
 	}
 	var initialLimitMB int64 = 500
 	if err == nil {
@@ -83,21 +97,22 @@ func Run(ctx context.Context, cfg *config.Config, dbInst *db.DB) error {
 	jwt := auth.JWTConfig{Secret: secret}
 	apiH := api.New(dbInst, sc, jwt, cipher, publicH)
 
-	go resumeInterruptedScans(ctx, dbInst, sc)
+	go sc.ResumeAll(ctx, dbInst)
 
 	if err := scheduler.LoadFromDB(ctx, dbInst); err != nil {
-		slog.Error("failed to load scan schedules", "err", err)
+		slog.Error("scheduler: load schedules failed", "err", err)
 	}
 	scheduler.Start()
 	defer scheduler.Stop()
 
-	if watcher == nil {
-		slog.Info("watcher: disabled (fsnotify unavailable)")
-	} else {
+	if watcher != nil {
 		watchCtx, watchCancel := context.WithCancel(ctx)
 		defer watchCancel()
-		startWatcher(watchCtx, watcher, dbInst)
+		watcher.Start(watchCtx, dbInst)
 	}
+
+	auth.LogConfig()
+	logFirstBootHint(ctx, dbInst)
 
 	srv := &http.Server{
 		Addr:              cfg.Server.Addr,
@@ -112,7 +127,10 @@ func Run(ctx context.Context, cfg *config.Config, dbInst *db.DB) error {
 	g, gctx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
-		slog.Info("listening", "addr", cfg.Server.Addr)
+		slog.Info("sarga: ready",
+			"addr", cfg.Server.Addr,
+			"startup", time.Since(startedAt).Round(time.Millisecond),
+			"tls", "off")
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return err
 		}
@@ -134,71 +152,13 @@ func Run(ctx context.Context, cfg *config.Config, dbInst *db.DB) error {
 	return nil
 }
 
-func resumeInterruptedScans(ctx context.Context, d *db.DB, sc *scanner.Scanner) {
-	rows, err := d.Read().QueryContext(ctx, `SELECT DISTINCT library_id FROM scan_runs WHERE status = 'running'`)
-	if err != nil {
-		slog.Error("resume scans: query failed", "err", err)
+func logFirstBootHint(ctx context.Context, d *db.DB) {
+	var n int64
+	if err := d.Read().QueryRowContext(ctx, "SELECT COUNT(*) FROM users").Scan(&n); err != nil {
 		return
 	}
-	defer rows.Close() //nolint:errcheck
-	var libs []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err == nil {
-			libs = append(libs, id)
-		}
+	if n == 0 {
+		slog.Info("setup: no users found",
+			"action", "run 'sarga admin create-user' or enable registration in server settings")
 	}
-	if err := rows.Err(); err != nil {
-		slog.Error("resume scans: iterate rows", "err", err)
-	}
-	for _, libID := range libs {
-		go func(id string) {
-			if err := sc.Resume(ctx, id); err != nil {
-				slog.Error("resume: scan failed", "library_id", id, "err", err)
-			}
-		}(libID)
-	}
-}
-
-func resolveMasterKey(configured string, dirs *data.Dirs) (*crypto.MasterKey, error) {
-	if configured != "" {
-		k, err := crypto.ParseMasterKey(configured)
-		if err != nil {
-			return nil, err
-		}
-		slog.Info("master key: using configured override")
-		return k, nil
-	}
-	path, err := dirs.SecretFile("master.key")
-	if err != nil {
-		return nil, err
-	}
-	return crypto.LoadOrGenerateMasterKey(path)
-}
-
-func startWatcher(ctx context.Context, w *library.Watcher, dbInst *db.DB) {
-	pathMap, err := w.LoadPathsFromDB(ctx, dbInst)
-	if err != nil {
-		slog.Error("failed to build watcher path map", "err", err)
-		return
-	}
-	for root := range pathMap {
-		if err := w.Watch(root); err != nil {
-			slog.Error("watcher: failed to watch path", "path", root, "err", err)
-		}
-	}
-	slog.Info("watcher: monitoring library roots", "count", len(pathMap))
-	go w.Run(ctx, pathMap)
-}
-
-func resolveJWTSecret(configured string, dirs *data.Dirs) ([]byte, error) {
-	if configured != "" {
-		slog.Info("jwt secret: using configured override")
-		return []byte(configured), nil
-	}
-	path, err := dirs.SecretFile(crypto.JWTSecretFileName)
-	if err != nil {
-		return nil, err
-	}
-	return crypto.LoadOrGenerateJWTSecret(path)
 }

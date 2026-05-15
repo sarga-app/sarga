@@ -58,6 +58,26 @@ func decodeMasterKey(s string) ([]byte, error) {
 	return base64.RawStdEncoding.DecodeString(s)
 }
 
+func ResolveMasterKey(configured, path string) (*MasterKey, error) {
+	if configured != "" {
+		k, err := ParseMasterKey(configured)
+		if err != nil {
+			return nil, err
+		}
+		slog.Info("secrets: master override active")
+		return k, nil
+	}
+	return LoadOrGenerateMasterKey(path)
+}
+
+func ResolveJWTSecret(configured, path string) ([]byte, error) {
+	if configured != "" {
+		slog.Info("secrets: jwt override active")
+		return []byte(configured), nil
+	}
+	return LoadOrGenerateJWTSecret(path)
+}
+
 func LoadOrGenerateMasterKey(path string) (*MasterKey, error) {
 	data, err := readKeyFile(path)
 	switch {
@@ -65,7 +85,7 @@ func LoadOrGenerateMasterKey(path string) (*MasterKey, error) {
 		if len(data) != keySize {
 			return nil, fmt.Errorf("crypto: master key at %s: want %d bytes, got %d", path, keySize, len(data))
 		}
-		slog.Info("master key: loaded", "path", path)
+		slog.Info("secrets: master loaded", "path", path)
 	case errors.Is(err, fs.ErrNotExist):
 		data = make([]byte, keySize)
 		if _, rerr := io.ReadFull(rand.Reader, data); rerr != nil {
@@ -77,7 +97,7 @@ func LoadOrGenerateMasterKey(path string) (*MasterKey, error) {
 			}
 			return nil, fmt.Errorf("crypto: write master key: %w", werr)
 		}
-		slog.Info("master key: generated and persisted", "path", path)
+		slog.Info("secrets: master generated", "path", path)
 	default:
 		return nil, err
 	}
@@ -93,7 +113,7 @@ func LoadOrGenerateJWTSecret(path string) ([]byte, error) {
 		if len(data) < jwtSecretMinBytes {
 			return nil, fmt.Errorf("crypto: jwt secret at %s: want at least %d bytes, got %d", path, jwtSecretMinBytes, len(data))
 		}
-		slog.Info("jwt secret: loaded", "path", path)
+		slog.Info("secrets: jwt loaded", "path", path)
 		return data, nil
 	case errors.Is(err, fs.ErrNotExist):
 		fresh := make([]byte, jwtSecretGenBytes)
@@ -106,7 +126,7 @@ func LoadOrGenerateJWTSecret(path string) ([]byte, error) {
 			}
 			return nil, fmt.Errorf("crypto: write jwt secret: %w", werr)
 		}
-		slog.Info("jwt secret: generated and persisted", "path", path)
+		slog.Info("secrets: jwt generated", "path", path)
 		return fresh, nil
 	default:
 		return nil, err

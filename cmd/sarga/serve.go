@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -21,12 +22,15 @@ var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Run the sarga server",
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		startedAt := time.Now()
 		cfg, err := config.Load(serveConfigPath)
 		if err != nil {
 			return err
 		}
 		slog.SetDefault(log.NewLogger(cfg.Log))
-		v, _, _, _ := buildInfo()
+		v, commit, _, dirty := buildInfo()
+		printBanner(os.Stderr, v, commit, dirty)
+		slog.Info("log: configured", "level", cfg.Log.Level, "format", cfg.Log.Format)
 		slog.Info("sarga: starting", "version", v, "addr", cfg.Server.Addr, "data_dir", cfg.Data.Dir)
 
 		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
@@ -49,11 +53,11 @@ var serveCmd = &cobra.Command{
 		}
 		defer func() {
 			if err := dbInst.Close(); err != nil {
-				slog.Error("db close", "err", err)
+				slog.Error("db: close failed", "err", err)
 			}
 		}()
 
-		return server.Run(ctx, cfg, dbInst)
+		return server.Run(ctx, cfg, dbInst, startedAt)
 	},
 }
 
