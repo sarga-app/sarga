@@ -460,7 +460,7 @@ func getOrCreateRelease(ctx context.Context, q *queries.Queries, meta tags.Metad
 	return inserted.ID, nil
 }
 
-func findTrackByMBID(ctx context.Context, q *queries.Queries, meta tags.Metadata) (string, bool, error) {
+func findTrackByMBID(ctx context.Context, q *queries.Queries, meta tags.Metadata) (id string, found bool, err error) {
 	if meta.MBRecordingID == "" {
 		return "", false, nil
 	}
